@@ -8,8 +8,12 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var controller = ArduinoController()
+    
     var body: some View {
         ArduinoSetupView()
+            .environment(controller)
+            .frame(width: 500, height: 600)
     }
 }
 

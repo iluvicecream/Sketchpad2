@@ -8,61 +8,101 @@
 import SwiftUI
 
 struct ArduinoSetupView: View {
-    private enum InstallState {
-        case checking
-        case installing
-        case installed
-        case failed(message: String)
+    @Environment(ArduinoController.self) private var controller
+    
+    var body: some View {
+        ArduinoPhaseView(phase: controller.phase)
+            .task {
+                await controller.bootstrap()
+            }
     }
+}
 
-    @State private var state: InstallState = .checking
+struct ArduinoPhaseView: View {
+    let phase: ArduinoController.Phase
 
     var body: some View {
-        VStack(spacing: 16) {
-            switch state {
-            case .checking:
-                ProgressView("Checking Arduino CLI…")
-            case .installing:
-                ProgressView("Installing Arduino CLI…")
-            case .installed:
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.green)
-                Text("Arduino CLI is installed")
-            case .failed(let message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.orange)
-                Text("Could not install Arduino CLI")
-                    .font(.headline)
-                Text(message)
-                    .font(.footnote)
+        VStack(alignment: .leading, spacing: 24) {
+            icon
+                .frame(width: 64, height: 64)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.largeTitle.bold())
+                Text(description)
+                    .font(.title3)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
             }
         }
         .padding()
-        .task {
-            await checkArduinoCLI()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        switch phase {
+        case .checking, .installing, .startingDaemon:
+            ProgressView()
+                .controlSize(.extraLarge)
+        case .ready:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(.green)
+        case .stopped:
+            Image(systemName: "stop.circle")
+                .font(.system(size: 64))
+                .foregroundStyle(.secondary)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(.orange)
         }
     }
 
-    private func checkArduinoCLI() async {
-        if await ArduinoCliDownloader.shared.isInstalled {
-            state = .installed
-            return
+    private var title: String {
+        switch phase {
+        case .checking: "Checking Arduino CLI"
+        case .installing: "Installing Arduino CLI"
+        case .startingDaemon: "Starting Daemon"
+        case .ready: "Daemon Started Successfully"
+        case .stopped: "Daemon Stopped"
+        case .failed: "Could not install Arduino CLI"
         }
+    }
 
-        state = .installing
-        do {
-            try await ArduinoCliDownloader.shared.ensureInstalled()
-            state = .installed
-        } catch {
-            state = .failed(message: error.localizedDescription)
+    private var description: String {
+        switch phase {
+        case .checking: "Verifying the Arduino CLI installation."
+        case .installing: "Downloading and installing the Arduino CLI."
+        case .startingDaemon: "Launching the Arduino daemon."
+        case .ready: "The Arduino daemon is running and ready."
+        case .stopped: "The Arduino daemon is not running."
+        case .failed(let message): message
         }
     }
 }
 
-#Preview {
-    ArduinoSetupView()
+#Preview("Checking") {
+    ArduinoPhaseView(phase: .checking)
+}
+
+#Preview("Installing") {
+    ArduinoPhaseView(phase: .installing)
+}
+
+#Preview("Starting Daemon") {
+    ArduinoPhaseView(phase: .startingDaemon)
+}
+
+#Preview("Ready") {
+    ArduinoPhaseView(phase: .ready)
+}
+
+#Preview("Stopped") {
+    ArduinoPhaseView(phase: .stopped)
+}
+
+#Preview("Failed") {
+    ArduinoPhaseView(phase: .failed("The Arduino CLI could not be downloaded."))
 }

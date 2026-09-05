@@ -14,16 +14,22 @@ actor ArduinoCliDownloader {
     private let installKey = "hasInstalledArduinoCli"
     private let fileManager = FileManager.default
     private let logger = Logger(subsystem: "com.perr.Sketchpad", category: "ArduinoCliDownloader")
+    private let defaults = UserDefaults.standard
     
     var arduinoCliPath : URL {
         let appSupportDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let bundleId = Bundle.main.bundleIdentifier!
-        return appSupportDir.appendingPathComponent(bundleId).appendingPathComponent("arduino-cli")
+        return appSupportDir
+            .appendingPathComponent(bundleId)
+            .appendingPathComponent("bin")
+            .appendingPathComponent("arduino-cli")
     }
     
     var isInstalled: Bool {
-        let isFlag = UserDefaults.standard.bool(forKey: installKey)
+        let isFlag = defaults.bool(forKey: installKey)
+        logger.info("isInstalled: \(isFlag)")
         let isExists = fileManager.fileExists(atPath: arduinoCliPath.path)
+        logger.info("isExists: \(isExists)")
         return isFlag && isExists
     }
     
@@ -58,7 +64,8 @@ actor ArduinoCliDownloader {
             [.posixPermissions: 0o755],
             ofItemAtPath: arduinoCliPath.path
         )
-        UserDefaults.standard.set(true, forKey: installKey)
+        defaults.set(true, forKey: installKey)
+        logger.info("Arduino CLI installed")
     }
     
     private func extractTar(tar: URL, to: URL) throws {
