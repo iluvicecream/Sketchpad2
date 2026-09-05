@@ -1,6 +1,6 @@
 //
-//  BenchApp.swift
-//  Bench
+//  SketchpadApp.swift
+//  Sketchpad
 //
 //  Created by perr on 9/5/2569 BE.
 //

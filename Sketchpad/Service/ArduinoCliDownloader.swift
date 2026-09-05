@@ -13,7 +13,7 @@ actor ArduinoCliDownloader {
     
     private let installKey = "hasInstalledArduinoCli"
     private let fileManager = FileManager.default
-    private let logger = Logger(subsystem: "com.perr.Bench", category: "ArduinoCliDownloader")
+    private let logger = Logger(subsystem: "com.perr.Sketchpad", category: "ArduinoCliDownloader")
     
     var arduinoCliPath : URL {
         let appSupportDir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
