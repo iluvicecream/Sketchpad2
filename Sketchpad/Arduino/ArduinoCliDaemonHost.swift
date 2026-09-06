@@ -7,6 +7,8 @@
 
 import Foundation
 import os
+import GRPCNIOTransportHTTP2
+import GRPCCore
 
 actor ArduinoCliDaemonHost {
     static let shared = ArduinoCliDaemonHost()
@@ -15,17 +17,26 @@ actor ArduinoCliDaemonHost {
     private(set) var isDaemonRunning: Bool = false
     private let logger = Logger(subsystem: "com.perr.Sketchpad", category: "ArduinoCliDaemonHost")
     
-        //gRPC details
+    //gRPC details
     let port: Int = 50051
+    private(set) var isGRPCReady : Bool = false
+    private var gRPCLifecycleTask : Task<Void,Never>?
+    private var logReadingTask: Task<Void, Never>?
+    
+    //gRPC client
+    private(set) var arduinoCoreClient : Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.Client<HTTP2ClientTransport.Posix>?
+    
     
     enum DaemonError: Error,LocalizedError {
         case clinotInstalled
         case daemonAlreadyRunning
+        case daemonFailedToStart
         
         var errorDescription: String? {
             switch self {
             case .clinotInstalled : return "Arduino CLI not installed"
             case .daemonAlreadyRunning : return "Arduino daemon already running"
+            case .daemonFailedToStart : return "Arduino daemon failed to start"
             }
         }
     }
@@ -57,28 +68,89 @@ actor ArduinoCliDaemonHost {
         daemonProcess = process
         isDaemonRunning = true
         
-        Task {
-            do {
-                for try await line in pipe.fileHandleForReading.bytes.lines {
-                    logger.debug("ArduinoDaemonPipe : \(line)")
+        try await waitForDaemonReady(pipe: pipe)
+        setupGRPC()
+    }
+    
+    private func waitForDaemonReady(pipe : Pipe) async throws {
+        logReadingTask?.cancel()
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            logReadingTask = Task {
+                var isReady = false
+                do {
+                    for try await line in pipe.fileHandleForReading.bytes.lines {
+                        self.logger.debug("Daemon: \(line)")
+                        
+                        if !isReady && line.contains("Daemon is now listening on") {
+                            isReady = true
+                            continuation.resume()
+                        }
+                    }
+                
+                } catch {
+                    self.logger.error("Daemon not ready")
+                    if !isReady {
+                        continuation.resume(throwing: DaemonError.daemonFailedToStart)
+                    }
                 }
-            } catch {
-                logger.error("Failed to read Arduino daemon pipe: \(error)")
             }
         }
     }
     
-    func stop() {
-        guard isDaemonRunning, let process = daemonProcess else { return }
-        process.terminate()
+    private func setupGRPC() {
+        gRPCLifecycleTask?.cancel()
         
-        daemonProcess = nil
-        isDaemonRunning = false
+        gRPCLifecycleTask = Task {
+            do {
+                try await withGRPCClient(
+                    transport: .http2NIOPosix(
+                        target: .dns(host: "127.0.0.1",port: port),
+                        transportSecurity: .plaintext
+                    )
+                ) { rawClient in
+                    self.isGRPCReady = true
+                    
+                    // createServiceClient
+                    arduinoCoreClient = await Cc_Arduino_Cli_Commands_V1_ArduinoCoreService
+                        .Client(wrapping: rawClient)
+                    
+                    self.logger.debug("gRPC ready")
+                    
+                    try await Task.sleep(nanoseconds: UInt64.max)
+                }
+            } catch {
+                if !Task.isCancelled {
+                    self.logger.error("Failed to start gRPC: \(error)")
+                    self.cleanupGRPCState()
+                }
+            }
+        }
+    }
+    
+    private func cleanupGRPCState() {
+        self.isGRPCReady = false
+    }
+    
+    func stop() {
+        daemonProcess?.terminate()
     }
     
     private func handleTermination() {
-        isDaemonRunning = false
-        daemonProcess = nil
         logger.debug("Arduino daemon stopped")
+        cleanupState()
+    }
+    
+    private func cleanupState() {
+            isDaemonRunning = false
+            isGRPCReady = false
+            daemonProcess = nil
+            arduinoCoreClient = nil
+            
+            gRPCLifecycleTask?.cancel()
+            gRPCLifecycleTask = nil
+            
+            logReadingTask?.cancel()
+            logReadingTask = nil
     }
 }

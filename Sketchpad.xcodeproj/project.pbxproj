@@ -6,6 +6,15 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		4382D159304D63BE00880B95 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D158304D63BE00880B95 /* SwiftProtobuf */; };
+		4382D15B304D63BE00880B95 /* SwiftProtobufPluginLibrary in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D15A304D63BE00880B95 /* SwiftProtobufPluginLibrary */; };
+		4382D15E304D657300880B95 /* GRPCProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D15D304D657300880B95 /* GRPCProtobuf */; };
+		4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */; };
+		4382D163304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */; };
+		4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		438B4050304C39F400362ECD /* Sketchpad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sketchpad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -22,6 +31,12 @@
 		438B404D304C39F400362ECD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4382D163304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix in Frameworks */,
+				4382D15E304D657300880B95 /* GRPCProtobuf in Frameworks */,
+				4382D15B304D63BE00880B95 /* SwiftProtobufPluginLibrary in Frameworks */,
+				4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */,
+				4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */,
+				4382D159304D63BE00880B95 /* SwiftProtobuf in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -60,6 +75,14 @@
 				438B4052304C39F400362ECD /* Sketchpad */,
 			);
 			name = Sketchpad;
+			packageProductDependencies = (
+				4382D158304D63BE00880B95 /* SwiftProtobuf */,
+				4382D15A304D63BE00880B95 /* SwiftProtobufPluginLibrary */,
+				4382D15D304D657300880B95 /* GRPCProtobuf */,
+				4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */,
+				4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */,
+				4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */,
+			);
 			productName = Bench;
 			productReference = 438B4050304C39F400362ECD /* Sketchpad.app */;
 			productType = "com.apple.product-type.application";
@@ -88,6 +111,11 @@
 			);
 			mainGroup = 438B4047304C39F400362ECD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
+				4382D15C304D657300880B95 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
+				4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 438B4051304C39F400362ECD /* Products */;
 			projectDirPath = "";
@@ -323,6 +351,66 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-protobuf.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.38.1;
+			};
+		};
+		4382D15C304D657300880B95 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-protobuf.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
+		4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-nio-transport.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4382D158304D63BE00880B95 /* SwiftProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */;
+			productName = SwiftProtobuf;
+		};
+		4382D15A304D63BE00880B95 /* SwiftProtobufPluginLibrary */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */;
+			productName = SwiftProtobufPluginLibrary;
+		};
+		4382D15D304D657300880B95 /* GRPCProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D15C304D657300880B95 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */;
+			productName = GRPCProtobuf;
+		};
+		4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2;
+		};
+		4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2Posix;
+		};
+		4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2TransportServices;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 438B4048304C39F400362ECD /* Project object */;
 	validationLevel = 1;

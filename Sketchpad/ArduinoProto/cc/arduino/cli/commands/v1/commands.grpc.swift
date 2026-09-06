@@ -869,7 +869,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService {
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
         /// - Returns: A streaming response of `Cc_Arduino_Cli_Commands_V1_InitResponse` messages.
-        func init(
+        func `init`(
             request: GRPCCore.StreamingServerRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Cc_Arduino_Cli_Commands_V1_InitResponse>
@@ -1880,7 +1880,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService {
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
         /// - Returns: A streaming response of `Cc_Arduino_Cli_Commands_V1_InitResponse` messages.
-        func init(
+        func `init`(
             request: GRPCCore.ServerRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Cc_Arduino_Cli_Commands_V1_InitResponse>
@@ -2889,7 +2889,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService {
         /// - Throws: Any error which occurred during the processing of the request. Thrown errors
         ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
         ///     to an internal error.
-        func init(
+        func `init`(
             request: Cc_Arduino_Cli_Commands_V1_InitRequest,
             response: GRPCCore.RPCWriter<Cc_Arduino_Cli_Commands_V1_InitResponse>,
             context: GRPCCore.ServerContext
@@ -3898,7 +3898,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.StreamingServiceProtocol
             deserializer: GRPCProtobuf.ProtobufDeserializer<Cc_Arduino_Cli_Commands_V1_InitRequest>(),
             serializer: GRPCProtobuf.ProtobufSerializer<Cc_Arduino_Cli_Commands_V1_InitResponse>(),
             handler: { request, context in
-                try await self.init(
+                try await self.`init`(
                     request: request,
                     context: context
                 )
@@ -4504,11 +4504,11 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.ServiceProtocol {
         return GRPCCore.StreamingServerResponse(single: response)
     }
 
-    internal func init(
+    internal func `init`(
         request: GRPCCore.StreamingServerRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Cc_Arduino_Cli_Commands_V1_InitResponse> {
-        let response = try await self.init(
+        let response = try await self.`init`(
             request: GRPCCore.ServerRequest(stream: request),
             context: context
         )
@@ -5093,14 +5093,14 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.SimpleServiceProtocol {
         )
     }
 
-    internal func init(
+    internal func `init`(
         request: GRPCCore.ServerRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
         context: GRPCCore.ServerContext
     ) async throws -> GRPCCore.StreamingServerResponse<Cc_Arduino_Cli_Commands_V1_InitResponse> {
         return GRPCCore.StreamingServerResponse<Cc_Arduino_Cli_Commands_V1_InitResponse>(
             metadata: [:],
             producer: { writer in
-                try await self.init(
+                try await self.`init`(
                     request: request.message,
                     response: writer,
                     context: context
@@ -5932,7 +5932,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        func init<Result>(
+        func `init`<Result>(
             request: GRPCCore.ClientRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             serializer: some GRPCCore.MessageSerializer<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Cc_Arduino_Cli_Commands_V1_InitResponse>,
@@ -7237,7 +7237,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService {
         ///       returned to the caller. Returning from the closure will cancel the RPC if it
         ///       hasn't already finished.
         /// - Returns: The result of `handleResponse`.
-        internal func init<Result>(
+        internal func `init`<Result>(
             request: GRPCCore.ClientRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             serializer: some GRPCCore.MessageSerializer<Cc_Arduino_Cli_Commands_V1_InitRequest>,
             deserializer: some GRPCCore.MessageDeserializer<Cc_Arduino_Cli_Commands_V1_InitResponse>,
@@ -9071,12 +9071,12 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func init<Result>(
+    internal func `init`<Result>(
         request: GRPCCore.ClientRequest<Cc_Arduino_Cli_Commands_V1_InitRequest>,
         options: GRPCCore.CallOptions = .defaults,
         onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Cc_Arduino_Cli_Commands_V1_InitResponse>) async throws -> Result
     ) async throws -> Result where Result: Sendable {
-        try await self.init(
+        try await self.`init`(
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Cc_Arduino_Cli_Commands_V1_InitRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Cc_Arduino_Cli_Commands_V1_InitResponse>(),
@@ -10641,7 +10641,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.ClientProtocol {
     ///       returned to the caller. Returning from the closure will cancel the RPC if it
     ///       hasn't already finished.
     /// - Returns: The result of `handleResponse`.
-    internal func init<Result>(
+    internal func `init`<Result>(
         _ message: Cc_Arduino_Cli_Commands_V1_InitRequest,
         metadata: GRPCCore.Metadata = [:],
         options: GRPCCore.CallOptions = .defaults,
@@ -10651,7 +10651,7 @@ extension Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.ClientProtocol {
             message: message,
             metadata: metadata
         )
-        return try await self.init(
+        return try await self.`init`(
             request: request,
             options: options,
             onResponse: handleResponse
