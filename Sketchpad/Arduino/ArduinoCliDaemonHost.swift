@@ -17,8 +17,10 @@ actor ArduinoCliDaemonHost {
     private(set) var isDaemonRunning: Bool = false
     private let logger = Logger(subsystem: "com.perr.Sketchpad", category: "ArduinoCliDaemonHost")
     
+    private var stdinPipe: Pipe?
+
     //gRPC details
-    let port: Int = 50051
+    let port: Int = 50052
     private(set) var isGRPCReady : Bool = false
     private var gRPCLifecycleTask : Task<Void,Never>?
     private var logReadingTask: Task<Void, Never>?
@@ -54,6 +56,10 @@ actor ArduinoCliDaemonHost {
         process.executableURL = arduinoCliURL
         process.arguments = ["daemon","--port","\(port)"]
         
+        let stdinPipe = Pipe()
+        process.standardInput = stdinPipe
+        self.stdinPipe = stdinPipe
+
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
@@ -146,6 +152,8 @@ actor ArduinoCliDaemonHost {
             isGRPCReady = false
             daemonProcess = nil
             arduinoCoreClient = nil
+        
+            stdinPipe = nil
             
             gRPCLifecycleTask?.cancel()
             gRPCLifecycleTask = nil

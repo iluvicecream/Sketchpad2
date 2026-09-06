@@ -25,6 +25,7 @@ import os
     
     //Arduino Core
     private(set) var coreInstanceId: Int32?
+    private var isCreatingInstance = false
     
     func bootstrap() async {
         let isArduinoCliInstalled = await ArduinoCliDownloader.shared.isInstalled
@@ -59,6 +60,14 @@ import os
     
     //Arduino Core Call
     private func createArduinoInstance() async {
+        if coreInstanceId != nil {
+            phase = .ready
+            return
+        }
+        guard !isCreatingInstance else { return }
+        isCreatingInstance = true
+        defer { isCreatingInstance = false }
+
         while await !ArduinoCliDaemonHost.shared.isGRPCReady {
             try? await Task.sleep(nanoseconds: 50_000_000)
         }

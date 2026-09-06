@@ -7,14 +7,14 @@
 
 import SwiftUI
 
-struct ArduinoSetupView: View {
+struct BootstrapView: View {
     @Environment(ArduinoController.self) private var controller
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @State private var didOpenProjects = false
     
     var body: some View {
-        ArduinoPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
+        BootstrapPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
             .task {
                 await controller.bootstrap()
             }
@@ -27,7 +27,7 @@ struct ArduinoSetupView: View {
     }
 }
 
-struct ArduinoPhaseView: View {
+struct BootstrapPhaseView: View {
     let phase: ArduinoController.Phase
     let coreId: Int32?
     
@@ -94,25 +94,25 @@ struct ArduinoPhaseView: View {
 }
 
 #Preview("Checking") {
-    ArduinoPhaseView(phase: .checking, coreId: 0)
+    BootstrapPhaseView(phase: .checking, coreId: 0)
 }
 
 #Preview("Installing") {
-    ArduinoPhaseView(phase: .installing, coreId: 0)
+    BootstrapPhaseView(phase: .installing, coreId: 0)
 }
 
 #Preview("Starting Daemon") {
-    ArduinoPhaseView(phase: .startingDaemon,coreId: 0)
+    BootstrapPhaseView(phase: .startingDaemon,coreId: 0)
 }
 
 #Preview("Ready") {
-    ArduinoPhaseView(phase: .ready, coreId: 0)
+    BootstrapPhaseView(phase: .ready, coreId: 0)
 }
 
 #Preview("Stopped") {
-    ArduinoPhaseView(phase: .stopped, coreId: 0)
+    BootstrapPhaseView(phase: .stopped, coreId: 0)
 }
 
 #Preview("Failed") {
-    ArduinoPhaseView(phase: .failed("The Arduino CLI could not be downloaded."),coreId:0)
+    BootstrapPhaseView(phase: .failed("The Arduino CLI could not be downloaded."),coreId:0)
 }
