@@ -9,11 +9,20 @@ import SwiftUI
 
 struct ArduinoSetupView: View {
     @Environment(ArduinoController.self) private var controller
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
+    @State private var didOpenProjects = false
     
     var body: some View {
         ArduinoPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
             .task {
                 await controller.bootstrap()
+            }
+            .onChange(of: controller.phase) { _, newPhase in
+                guard newPhase == .ready, !didOpenProjects else { return }
+                didOpenProjects = true
+                openWindow(id: "projects")
+                dismiss()
             }
     }
 }
