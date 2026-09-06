@@ -27,7 +27,8 @@ import os
     private(set) var coreInstanceId: Int32?
     private var isCreatingInstance = false
     
-    var isBootstrapped: Bool = false 
+    var isBootstrapped: Bool = false
+    var shouldBootstrapViewBeShown : Bool = false
     
     func bootstrap() async {
         logger.debug(".bootstrap")
@@ -60,8 +61,7 @@ import os
             logger.error("Failed to start Arduino daemon: \(error)")
         }
     }
-    
-    //Arduino Core Call
+ 
     private func createArduinoInstance() async {
         if coreInstanceId != nil {
             phase = .ready
@@ -93,6 +93,25 @@ import os
         } catch {
             self.logger.error("Failed to create instance via gRPC: \(error)")
             phase = .failed(error.localizedDescription)
+        }
+    }
+    
+    func getVersion() async -> String {
+        guard await ArduinoCliDaemonHost.shared.isGRPCReady,
+            let client = await ArduinoCliDaemonHost.shared.arduinoCoreClient else {
+            logger.error("gRPC client is nil or not ready.")
+            phase = .failed("gRPC connection unavailable")
+            return "Unknown"
+        }
+        do {
+            let request = Cc_Arduino_Cli_Commands_V1_VersionRequest()
+            let response = try await client.version(request)
+            logger.debug("VersionResponse version: \(response.version)")
+            return response.version
+            
+        } catch {
+            self.logger.error("Failed to request version")
+            return "Unknown"
         }
     }
 }

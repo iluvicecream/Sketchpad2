@@ -15,6 +15,7 @@ struct StateView : View {
     
     var body : some View {
         EmptyView()
+            .hidden()
             .task {
                 if controller.isBootstrapped {
                     logger.debug("bootstrap true")

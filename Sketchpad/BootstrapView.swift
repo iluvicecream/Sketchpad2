@@ -52,6 +52,7 @@ struct BootstrapPhaseView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         default:
             EmptyView()
+                .hidden()
         }
     }
 

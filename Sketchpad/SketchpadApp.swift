@@ -21,10 +21,9 @@ struct BenchApp: App {
         WindowGroup(id:"bootstrap"){
             BootstrapView()
                 .environment(controller)
+                .opacity(controller.shouldBootstrapViewBeShown ? 1 : 0)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 500, height: 600)
-        .windowResizability(.contentSize)
         .restorationBehavior(.disabled)
         
         WindowGroup(id:"projects") {
