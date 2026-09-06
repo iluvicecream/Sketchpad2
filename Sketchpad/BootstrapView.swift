@@ -11,42 +11,48 @@ struct BootstrapView: View {
     @Environment(ArduinoController.self) private var controller
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
-    @State private var didOpenProjects = false
     
     var body: some View {
         BootstrapPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
             .task {
                 await controller.bootstrap()
             }
-            .onChange(of: controller.phase) { _, newPhase in
-                guard newPhase == .ready, !didOpenProjects else { return }
-                didOpenProjects = true
-                openWindow(id: "projects")
-                dismiss()
+            .onChange(of: controller.phase, initial: true) { _, newPhase in
+                if case .ready = newPhase {
+                    openWindow(id: "projects")
+                    dismiss()
+                    controller.isBootstrapped = true
+                }
             }
+            
     }
 }
 
 struct BootstrapPhaseView: View {
     let phase: ArduinoController.Phase
     let coreId: Int32?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            icon
-                .frame(width: 64, height: 64)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.largeTitle.bold())
-                Text(description)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
+    var body: some View {
+        switch phase {
+        case .installing,.failed:
+            VStack(alignment: .leading, spacing: 24) {
+                icon
+                    .frame(width: 64, height: 64)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.largeTitle.bold())
+                    Text(description)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
             }
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        default:
+            EmptyView()
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -91,28 +97,4 @@ struct BootstrapPhaseView: View {
         case .failed(let message): message
         }
     }
-}
-
-#Preview("Checking") {
-    BootstrapPhaseView(phase: .checking, coreId: 0)
-}
-
-#Preview("Installing") {
-    BootstrapPhaseView(phase: .installing, coreId: 0)
-}
-
-#Preview("Starting Daemon") {
-    BootstrapPhaseView(phase: .startingDaemon,coreId: 0)
-}
-
-#Preview("Ready") {
-    BootstrapPhaseView(phase: .ready, coreId: 0)
-}
-
-#Preview("Stopped") {
-    BootstrapPhaseView(phase: .stopped, coreId: 0)
-}
-
-#Preview("Failed") {
-    BootstrapPhaseView(phase: .failed("The Arduino CLI could not be downloaded."),coreId:0)
 }

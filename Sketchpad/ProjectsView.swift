@@ -11,8 +11,12 @@ struct ProjectsView: View {
     @Environment(ArduinoController.self) private var controller
     
     var body: some View {
-        Text("placeholder")
-        Text(controller.coreInstanceId?.description ?? "no controller")
+        if controller.phase != .ready {
+            StateView()
+                .environment(controller)
+        }else {
+            Text("arduino core id = \(controller.coreInstanceId?.description ?? "nvm arduino never got create")")
+        }
     }
 }
 

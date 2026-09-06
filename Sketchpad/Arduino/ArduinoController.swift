@@ -27,7 +27,10 @@ import os
     private(set) var coreInstanceId: Int32?
     private var isCreatingInstance = false
     
+    var isBootstrapped: Bool = false 
+    
     func bootstrap() async {
+        logger.debug(".bootstrap")
         let isArduinoCliInstalled = await ArduinoCliDownloader.shared.isInstalled
         if(!isArduinoCliInstalled){
             logger.error("Arduino CLI is not installed")
@@ -85,6 +88,7 @@ import os
             self.coreInstanceId = response.instance.id
             self.logger.info("Successfully created Arduino instance with ID: \(response.instance.id)")
             phase = .ready
+            
             
         } catch {
             self.logger.error("Failed to create instance via gRPC: \(error)")

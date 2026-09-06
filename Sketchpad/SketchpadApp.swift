@@ -10,20 +10,28 @@ import SwiftUI
 @main
 struct BenchApp: App {
     @State private var controller = ArduinoController()
-
+    
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(){
+            StateView()
+                .environment(controller)
+        }
+        .restorationBehavior(.disabled)
+        
+        WindowGroup(id:"bootstrap"){
             BootstrapView()
                 .environment(controller)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 500, height: 600)
         .windowResizability(.contentSize)
-
-        Window("Projects", id: "projects") {
+        .restorationBehavior(.disabled)
+        
+        WindowGroup(id:"projects") {
             ProjectsView()
                 .environment(controller)
         }
         .defaultSize(width: 900, height: 600)
+        .restorationBehavior(.disabled)
     }
 }
