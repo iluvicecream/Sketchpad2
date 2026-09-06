@@ -69,7 +69,7 @@ actor ArduinoCliDaemonHost {
         isDaemonRunning = true
         
         try await waitForDaemonReady(pipe: pipe)
-        setupGRPC()
+        try await setupGRPC()
     }
     
     private func waitForDaemonReady(pipe : Pipe) async throws {
@@ -98,7 +98,7 @@ actor ArduinoCliDaemonHost {
         }
     }
     
-    private func setupGRPC() {
+    private func setupGRPC() async throws {
         gRPCLifecycleTask?.cancel()
         
         gRPCLifecycleTask = Task {

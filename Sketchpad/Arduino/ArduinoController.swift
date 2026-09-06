@@ -23,6 +23,9 @@ import os
     private(set)var phase: Phase = .checking
     private(set)var isDaemonRunning : Bool = false
     
+    //Arduino Core
+    private(set) var coreInstanceId: Int32?
+    
     func bootstrap() async {
         let isArduinoCliInstalled = await ArduinoCliDownloader.shared.isInstalled
         if(!isArduinoCliInstalled){
@@ -43,14 +46,40 @@ import os
             phase = .startingDaemon
             try await ArduinoCliDaemonHost.shared.start()
             if await (ArduinoCliDaemonHost.shared.isDaemonRunning){
-                phase = .ready
+                await createArduinoInstance()
             }
         } catch ArduinoCliDaemonHost.DaemonError.daemonAlreadyRunning {
-            phase = .ready
+            await createArduinoInstance()
             logger.debug("Arduino daemon already running, continuing")
         } catch {
             phase = .failed(error.localizedDescription)
             logger.error("Failed to start Arduino daemon: \(error)")
+        }
+    }
+    
+    //Arduino Core Call
+    private func createArduinoInstance() async {
+        while await !ArduinoCliDaemonHost.shared.isGRPCReady {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        
+        guard await ArduinoCliDaemonHost.shared.isGRPCReady,
+              let client = await ArduinoCliDaemonHost.shared.arduinoCoreClient else {
+            logger.error("gRPC client is nil or not ready.")
+            phase = .failed("gRPC connection unavailable")
+            return
+        }
+        
+        do {
+            let request = Cc_Arduino_Cli_Commands_V1_CreateRequest()
+            let response = try await client.create(request)
+            self.coreInstanceId = response.instance.id
+            self.logger.info("Successfully created Arduino instance with ID: \(response.instance.id)")
+            phase = .ready
+            
+        } catch {
+            self.logger.error("Failed to create instance via gRPC: \(error)")
+            phase = .failed(error.localizedDescription)
         }
     }
 }

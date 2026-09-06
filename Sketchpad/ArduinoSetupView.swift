@@ -11,7 +11,7 @@ struct ArduinoSetupView: View {
     @Environment(ArduinoController.self) private var controller
     
     var body: some View {
-        ArduinoPhaseView(phase: controller.phase)
+        ArduinoPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
             .task {
                 await controller.bootstrap()
             }
@@ -20,7 +20,8 @@ struct ArduinoSetupView: View {
 
 struct ArduinoPhaseView: View {
     let phase: ArduinoController.Phase
-
+    let coreId: Int32?
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             icon
@@ -76,7 +77,7 @@ struct ArduinoPhaseView: View {
         case .checking: "Verifying the Arduino CLI installation."
         case .installing: "Downloading and installing the Arduino CLI."
         case .startingDaemon: "Launching the Arduino daemon."
-        case .ready: "The Arduino daemon is running and ready."
+        case .ready: "The Arduino daemon is running and ready. With core id \(coreId?.description ?? "unknown")"
         case .stopped: "The Arduino daemon is not running."
         case .failed(let message): message
         }
@@ -84,25 +85,25 @@ struct ArduinoPhaseView: View {
 }
 
 #Preview("Checking") {
-    ArduinoPhaseView(phase: .checking)
+    ArduinoPhaseView(phase: .checking, coreId: 0)
 }
 
 #Preview("Installing") {
-    ArduinoPhaseView(phase: .installing)
+    ArduinoPhaseView(phase: .installing, coreId: 0)
 }
 
 #Preview("Starting Daemon") {
-    ArduinoPhaseView(phase: .startingDaemon)
+    ArduinoPhaseView(phase: .startingDaemon,coreId: 0)
 }
 
 #Preview("Ready") {
-    ArduinoPhaseView(phase: .ready)
+    ArduinoPhaseView(phase: .ready, coreId: 0)
 }
 
 #Preview("Stopped") {
-    ArduinoPhaseView(phase: .stopped)
+    ArduinoPhaseView(phase: .stopped, coreId: 0)
 }
 
 #Preview("Failed") {
-    ArduinoPhaseView(phase: .failed("The Arduino CLI could not be downloaded."))
+    ArduinoPhaseView(phase: .failed("The Arduino CLI could not be downloaded."),coreId:0)
 }
