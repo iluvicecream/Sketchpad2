@@ -13,12 +13,14 @@ struct EditorView: View {
     @State private var version: String = ""
     
     var body: some View {
-        VStack {
-            Text("arduino core id = \(controller.coreInstanceId?.description ?? "nvm arduino never got create")")
-            Text(version)
-                .task {
-                    version = await controller.getVersion()
-                }
+        NavigationSplitView {
+            Text("Wow")
+            Text("What")
+        } detail : {
+            Text(controller.arduinoInstance.id.description)
+            Text(version).task {
+                version = await controller.getVersion()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }

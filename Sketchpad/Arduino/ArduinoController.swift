@@ -24,7 +24,7 @@ import os
     private(set)var isDaemonRunning : Bool = false
     
     //Arduino Core
-    private(set) var coreInstanceId: Int32?
+    var arduinoInstance : Cc_Arduino_Cli_Commands_V1_Instance = Cc_Arduino_Cli_Commands_V1_Instance()
     private var isCreatingInstance = false
     
     var isBootstrapped: Bool = false
@@ -63,7 +63,7 @@ import os
     }
  
     private func createArduinoInstance() async {
-        if coreInstanceId != nil {
+        if arduinoInstance.id != 0 {
             phase = .ready
             return
         }
@@ -85,7 +85,7 @@ import os
         do {
             let request = Cc_Arduino_Cli_Commands_V1_CreateRequest()
             let response = try await client.create(request)
-            self.coreInstanceId = response.instance.id
+            self.arduinoInstance = response.instance
             self.logger.info("Successfully created Arduino instance with ID: \(response.instance.id)")
             phase = .ready
             
