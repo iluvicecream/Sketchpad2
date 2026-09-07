@@ -25,5 +25,5 @@ struct EditorView: View {
 }
 
 #Preview {
-    ProjectsView()
+    EditorView()
 }
