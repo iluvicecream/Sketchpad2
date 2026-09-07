@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ProjectsView: View {
+struct EditorView: View {
     @Environment(ArduinoController.self) private var controller
     
     @State private var version: String = ""

@@ -14,7 +14,7 @@ struct BenchApp: App {
     var body: some Scene {
         WindowGroup(){
             if controller.phase == .ready {
-                ProjectsView()
+                EditorView()
                     .environment(controller)
             }else {
                 BootstrapView()
