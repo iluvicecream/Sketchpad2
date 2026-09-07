@@ -9,18 +9,9 @@ import SwiftUI
 
 struct BootstrapView: View {
     @Environment(ArduinoController.self) private var controller
-    
-    var body: some View {
-        BootstrapPhaseView(phase: controller.phase,coreId:controller.coreInstanceId)
-    }
-}
-
-struct BootstrapPhaseView: View {
-    let phase: ArduinoController.Phase
-    let coreId: Int32?
 
     var body: some View {
-        switch phase {
+        switch controller.phase {
         case .failed:
             VStack(spacing: 24) {
                 icon
@@ -44,7 +35,7 @@ struct BootstrapPhaseView: View {
 
     @ViewBuilder
     private var icon: some View {
-        switch phase {
+        switch controller.phase {
         case .failed:
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 64))
@@ -56,14 +47,14 @@ struct BootstrapPhaseView: View {
     }
 
     private var title: String {
-        switch phase {
+        switch controller.phase {
         case .failed: "Could not start Sketchpad"
         default: "you shouldn't see this"
         }
     }
 
     private var description: String {
-        switch phase {
+        switch controller.phase {
         case .failed(let message): message
         default: "you shouldn't see this"
         }

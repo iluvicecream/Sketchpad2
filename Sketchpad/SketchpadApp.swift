@@ -12,7 +12,6 @@ struct BenchApp: App {
     @State private var controller = ArduinoController()
     
     var body: some Scene {
-        
         WindowGroup(){
             if controller.phase == .ready {
                 ProjectsView()
