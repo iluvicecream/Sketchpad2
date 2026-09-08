@@ -11,13 +11,16 @@ import os
 import SwiftData
 
 struct SketchbookSidebar : View {
+    @Binding var selectedEditorMainView: String
     @Environment(ArduinoController.self) private var controller
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [SortDescriptor(\SketchbookHistoryData.last_opened, order: .reverse)]) private var recentSketches: [SketchbookHistoryData]
     @State private var showNewSketchModal = false
     
+    private let logger: Logger = Logger(subsystem: "com.perr.Sketchpad", category: "SketchSidebar")
+    
     var body : some View {
-        List {
+        List(selection: $selectedEditorMainView) {
             HStack {
                 Text("Sketchbook").bold().foregroundStyle(.secondary)
                 Spacer()
@@ -31,12 +34,7 @@ struct SketchbookSidebar : View {
             }
             
             ForEach(recentSketches) { item in
-                NavigationLink(value: item.sketch_dir) {
-                    HStack {
-                        Text(item.sketch_name)
-                        Spacer()
-                    }
-                }
+                SketchNavLinkView(item: item, logger: logger)
             }
         }
         .sheet(isPresented: $showNewSketchModal) {
@@ -44,6 +42,20 @@ struct SketchbookSidebar : View {
                 showNewSketchModal: $showNewSketchModal
             )
             .environment(controller)
+        }
+    }
+}
+
+private struct SketchNavLinkView: View {
+    let item: SketchbookHistoryData
+    let logger: Logger
+    
+    var body: some View {
+        NavigationLink(value: "SketchEditor_" + item.sketch_main_dir) {
+            HStack {
+                Text(item.sketch_name)
+                Spacer()
+            }
         }
     }
 }

@@ -14,12 +14,14 @@ struct MainView: View {
     @State private var version: String = ""
     @State private var selectedModule = 0
     
+    @State private var selectedEditorMainView : String = ""
+    
     var body: some View {
         NavigationSplitView {
             VStack {
                 switch selectedModule {
                 case 0 :
-                    SketchbookSidebar().environment(controller).modelContainer(for: SketchbookHistoryData.self)
+                    SketchbookSidebar(selectedEditorMainView: $selectedEditorMainView).environment(controller).modelContainer(for: SketchbookHistoryData.self)
                 case 1:
                     Text("bowowow")
                 case 2:
@@ -40,9 +42,9 @@ struct MainView: View {
             }
             .navigationSplitViewColumnWidth(min: 310, ideal: 310)
         } detail : {
-            Text(controller.arduinoInstance.id.description)
-            Text(version).task {
-                version = await controller.getVersion()
+            if(selectedEditorMainView.starts(with: "SketchEditor_")) {
+                let mainDir = String(selectedEditorMainView.trimmingPrefix("SketchEditor_"))
+                
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
