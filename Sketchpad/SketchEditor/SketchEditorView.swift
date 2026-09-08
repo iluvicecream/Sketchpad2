@@ -69,7 +69,7 @@ struct SketchEditorRealView: View {
     
     var body: some View {
         VStack {
-            MonacoEditorView(text: $editorText, language: "cpp")
+            MonacoEditorView(text: $editorText, language: monacoLanguage)
         }
         .onChange(of: initialContent) { _, newContent in
             editorText = newContent
@@ -83,6 +83,17 @@ struct SketchEditorRealView: View {
             }
             .keyboardShortcut("s", modifiers: .command)
             .hidden()
+        }
+    }
+
+    private var monacoLanguage: String {
+        switch URL(fileURLWithPath: activeSketch.mainFile).pathExtension.lowercased() {
+        case "ino":
+            return "arduino"
+        case "c", "cc", "cpp", "h", "hh", "hpp":
+            return "cpp"
+        default:
+            return "cpp"
         }
     }
     

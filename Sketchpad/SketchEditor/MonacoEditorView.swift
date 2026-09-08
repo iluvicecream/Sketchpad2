@@ -9,9 +9,10 @@
     struct MonacoEditorView: View {
         @Binding var text: String
         var language: String = "cpp"
+        @Environment(\.colorScheme) private var colorScheme
         
         var body: some View {
-            MonacoWebView(text: $text, language: language)
+            MonacoWebView(text: $text, language: language, colorScheme: colorScheme)
         }
     }
 
@@ -20,6 +21,7 @@
     struct MonacoWebView: PlatformViewRepresentable {
         @Binding var text: String
         var language: String
+        var colorScheme: ColorScheme
 
         func makeCoordinator() -> Coordinator {
             Coordinator(self)
@@ -39,8 +41,9 @@
 
             let webView = WKWebView(frame: .zero, configuration: config)
             context.coordinator.webView = webView
+            let isDarkInit = colorScheme == .dark
 
-            let html = """
+            let html = #"""
             <!DOCTYPE html>
             <html>
             <head>
@@ -66,6 +69,200 @@
 
                     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
                     require(['vs/editor/editor.main'], function() {
+                        // Register the Arduino language (a superset of C++)
+                        monaco.languages.register({ id: 'arduino' });
+
+                        monaco.languages.setLanguageConfiguration('arduino', {
+                            comments: { lineComment: '//', blockComment: ['/*', '*/'] },
+                            brackets: [['{','}'],['[',']'],['(',')']],
+                            autoClosingPairs: [
+                                { open: '{', close: '}' },
+                                { open: '[', close: ']' },
+                                { open: '(', close: ')' },
+                                { open: '"', close: '"' },
+                                { open: "'", close: "'" }
+                            ],
+                            surroundingPairs: [
+                                { open: '{', close: '}' },
+                                { open: '[', close: ']' },
+                                { open: '(', close: ')' },
+                                { open: '"', close: '"' },
+                                { open: "'", close: "'" }
+                            ]
+                        });
+
+                        var arduinoKeywords = [
+                            'asm','auto','break','case','catch','class','const','continue','default','delete','do',
+                            'else','enum','explicit','extern','final','for','friend','goto','if','inline','long',
+                            'mutable','namespace','new','noexcept','operator','private','protected','public','register',
+                            'return','short','signed','sizeof','static','struct','switch','template','this','throw',
+                            'try','typedef','typename','union','unsigned','using','virtual','volatile','while',
+                            'setup','loop','yield','main'
+                        ];
+                        var arduinoTypeKeywords = [
+                            'bool','boolean','byte','char','double','float','int','int8_t','int16_t','int32_t','int64_t',
+                            'long','short','size_t','uint8_t','uint16_t','uint32_t','uint64_t','unsigned','void',
+                            'word','String','Stream','HardwareSerial','Print','File'
+                        ];
+                        var arduinoConstants = [
+                            'HIGH','LOW','INPUT','OUTPUT','INPUT_PULLUP','LED_BUILTIN','LED_BUILTIN_RX','LED_BUILTIN_TX',
+                            'RISING','FALLING','CHANGE','DEFAULT','EXTERNAL','INTERNAL',
+                            'A0','A1','A2','A3','A4','A5','A6','A7','A8','A9','A10','A11','A12','A13','A14','A15',
+                            'true','false','NULL','nullptr','PI','HALF_PI','TWO_PI','DEG_TO_RAD','RAD_TO_DEG'
+                        ];
+                        var arduinoBuiltins = [
+                            'abs','acos','analogRead','analogReference','analogWrite','asin','atan','atan2','attachInterrupt',
+                            'byte','ceil','constrain','cos','detachInterrupt','digitalPinToInterrupt','digitalRead','digitalWrite',
+                            'delay','delayMicroseconds','exp','floor','hypot','interrupts','isAlpha','isAlphaNumeric',
+                            'isAscii','isControl','isDigit','isGraph','isHexadecimalDigit','isLowerCase','isPrintable',
+                            'isPunct','isSpace','isUpperCase','isWhitespace','log','log10','long','lowByte','map','max',
+                            'micros','millis','min','noInterrupts','noTone','pinMode','pow','pulseIn','pulseInLong',
+                            'random','randomSeed','round','shiftIn','shiftOut','sin','sq','sqrt','tan','tone','word'
+                        ];
+
+                        monaco.languages.setMonarchTokensProvider('arduino', {
+                            defaultToken: '',
+                            tokenPostfix: '',
+                            keywords: arduinoKeywords,
+                            typeKeywords: arduinoTypeKeywords,
+                            constants: arduinoConstants,
+                            builtinFunctions: arduinoBuiltins,
+                            symbols: /[=><!~?:&|+\-*/^%]+/,
+                            escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+                            tokenizer: {
+                                root: [
+                                    [/^[ \t]*#.*$/, 'preprocessor'],
+                                    [/\/\/.*$/, 'comment'],
+                                    [/\/\*/, 'comment', '@comment'],
+                                    [/\s+/, 'white'],
+                                    [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+                                    [/0[bB][01]+/, 'number.binary'],
+                                    [/[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?/, 'number'],
+                                    [/"(?:[^"\\]|\\.)*"/, 'string'],
+                                    [/'(?:[^'\\]|\\.)*'/, 'string'],
+                                    [/[{}()[\]]/, '@brackets'],
+                                    [/[;,.]/, 'delimiter'],
+                                    [/[=><!~?:&|+\-*/^%]+/, 'operator'],
+                                    [/[a-zA-Z_]\w*/, { cases: {
+                                        '@keywords': 'keyword',
+                                        '@typeKeywords': 'type',
+                                        '@constants': 'constant',
+                                        '@builtinFunctions': 'predefined',
+                                        '@default': 'identifier'
+                                    }}]
+                                ],
+                                comment: [
+                                    [/[^/*]+/, 'comment'],
+                                    [/\*\//, 'comment', '@pop'],
+                                    [/[/*]/, 'comment']
+                                ]
+                            }
+                        });
+
+                        // Code completion for Arduino sketches
+                        monaco.languages.registerCompletionItemProvider('arduino', {
+                            provideCompletionItems: function(model, position) {
+                                var word = model.getWordUntilPosition(position);
+                                var range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
+                                var suggestions = [];
+                                var seen = {};
+
+                                function add(label, kind, insertText, extra) {
+                                    if (seen[label]) return;
+                                    seen[label] = true;
+                                    var item = {
+                                        label: label,
+                                        kind: kind,
+                                        insertText: insertText || label,
+                                        range: range
+                                    };
+                                    if (extra) for (var key in extra) item[key] = extra[key];
+                                    suggestions.push(item);
+                                }
+
+                                arduinoConstants.forEach(function(k) { add(k, monaco.languages.CompletionItemKind.Constant, k); });
+                                arduinoTypeKeywords.forEach(function(k) { add(k, monaco.languages.CompletionItemKind.TypeParameter, k); });
+                                arduinoKeywords.forEach(function(k) { add(k, monaco.languages.CompletionItemKind.Keyword, k); });
+                                arduinoBuiltins.forEach(function(f) {
+                                    add(f, monaco.languages.CompletionItemKind.Function, f + '($0)', {
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                    });
+                                });
+
+                                // Suggest user-defined functions declared in the sketch
+                                var text = model.getValue().replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+                                var controlKeywords = ['if','for','while','switch','catch','do','else','return','sizeof'];
+                                var fnRe = /[^\w.]([A-Za-z_]\w*)\s*(\([^)]*\))\s*\{/g;
+                                var m;
+                                while ((m = fnRe.exec(text)) !== null) {
+                                    var name = m[1];
+                                    if (controlKeywords.indexOf(name) !== -1) continue;
+                                    var params = m[2].slice(1, -1);
+                                    var paramNames = params ? params.split(',').map(function(p) {
+                                        var parts = p.trim().split(/\s+/);
+                                        return parts[parts.length - 1];
+                                    }).filter(function(p) { return /^[A-Za-z_]\w*$/.test(p); }) : [];
+                                    var snippet;
+                                    if (paramNames.length === 0) {
+                                        snippet = name + '()';
+                                    } else {
+                                        snippet = name + '(' + paramNames.map(function(p, i) {
+                                            return '${' + (i + 1) + ':' + p + '}';
+                                        }).join(', ') + ')$0';
+                                    }
+                                    add(name, monaco.languages.CompletionItemKind.Function, snippet, {
+                                        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                    });
+                                }
+
+                                return { suggestions: suggestions };
+                            }
+                        });
+
+                        // Themes that follow the app's light/dark appearance
+                        monaco.editor.defineTheme('arduino-light', {
+                            base: 'vs',
+                            inherit: true,
+                            rules: [
+                                { token: 'keyword', foreground: '0000FF' },
+                                { token: 'type', foreground: '267F99' },
+                                { token: 'constant', foreground: 'A626A4' },
+                                { token: 'predefined', foreground: '008000' },
+                                { token: 'preprocessor', foreground: '795E26' },
+                                { token: 'operator', foreground: '000000' },
+                                { token: 'string', foreground: 'A31515' },
+                                { token: 'number', foreground: '098658' },
+                                { token: 'comment', foreground: '008000', fontStyle: 'italic' },
+                                { token: 'delimiter', foreground: '000000' }
+                            ],
+                            colors: {}
+                        });
+
+                        monaco.editor.defineTheme('arduino-dark', {
+                            base: 'vs-dark',
+                            inherit: true,
+                            rules: [
+                                { token: 'keyword', foreground: '569CD6' },
+                                { token: 'type', foreground: '4EC9B0' },
+                                { token: 'constant', foreground: 'C586C0' },
+                                { token: 'predefined', foreground: '4FC1FF' },
+                                { token: 'preprocessor', foreground: 'C586C0' },
+                                { token: 'operator', foreground: 'D4D4D4' },
+                                { token: 'string', foreground: 'CE9178' },
+                                { token: 'number', foreground: 'B5CEA8' },
+                                { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+                                { token: 'delimiter', foreground: 'D4D4D4' }
+                            ],
+                            colors: {}
+                        });
+
+                        var isDarkInitial = \#(isDarkInit ? "true" : "false");
+
+                        function applyTheme(dark) {
+                            monaco.editor.setTheme(dark ? 'arduino-dark' : 'arduino-light');
+                        }
+                        window.applyTheme = applyTheme;
+
                         
                         // Override Monaco's internal context menu service to intercept menu requests
                         var nativeContextMenuService = {
@@ -133,8 +330,8 @@
 
                         window.editor = monaco.editor.create(document.getElementById('container'), {
                             value: '',
-                            language: '\(language)',
-                            theme: 'vs-light',
+                            language: '\#(language)',
+                            theme: isDarkInitial ? 'arduino-dark' : 'arduino-light',
                             automaticLayout: true,
                             fontSize: 13,
                             minimap: { enabled: false }
@@ -174,7 +371,7 @@
                 </script>
             </body>
             </html>
-            """
+            """#
 
             webView.loadHTMLString(html, baseURL: nil)
             return webView
@@ -182,6 +379,12 @@
 
         private func updateWebView(_ webView: WKWebView, context: Context) {
             let coordinator = context.coordinator
+            let isDark = colorScheme == .dark
+
+            if coordinator.isReady, coordinator.lastAppliedDark != isDark {
+                coordinator.applyThemeToJS(isDark: isDark)
+                coordinator.lastAppliedDark = isDark
+            }
             
             guard coordinator.lastValueFromJS != text else { return }
             
@@ -198,6 +401,7 @@
             var lastValueFromJS: String = ""
             var isReady: Bool = false
             var pendingText: String?
+            var lastAppliedDark: Bool? = nil
 
             init(_ parent: MonacoWebView) {
                 self.parent = parent
@@ -206,6 +410,9 @@
             func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
                 if message.name == "editorReady" {
                     isReady = true
+                    let isDark = parent.colorScheme == .dark
+                    applyThemeToJS(isDark: isDark)
+                    lastAppliedDark = isDark
                     let initialText = pendingText ?? parent.text
                     applyTextToJS(initialText)
                     pendingText = nil
@@ -226,6 +433,13 @@
                     let js = "setEditorText(\(jsonString));"
                     webView.evaluateJavaScript(js, completionHandler: nil)
                 }
+            }
+
+            func applyThemeToJS(isDark: Bool) {
+                guard let webView = webView else { return }
+                let value = isDark ? "true" : "false"
+                let js = "window.applyTheme(" + value + ");"
+                webView.evaluateJavaScript(js, completionHandler: nil)
             }
 
             private func presentNativeContextMenu(dict: [String: Any]) {
