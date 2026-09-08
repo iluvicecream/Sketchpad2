@@ -14,7 +14,6 @@ struct SketchEditorView: View {
                     sketch: loadedData.sketch,
                     initialContent: loadedData.content
                 )
-                .id(loadedData.sketch.mainFile)
             } else if let errorMessage {
                 ContentUnavailableView(
                     "Failed to Load Sketch",
@@ -29,17 +28,15 @@ struct SketchEditorView: View {
             await loadSketchAndContent()
         }
     }
-    
+
     private func loadSketchAndContent() async {
-        loadedData = nil
-        errorMessage = nil
-        
         do {
             let sketch = try await controller.loadSketch(mainDir: mainDir)
             let fileURL = URL(fileURLWithPath: sketch.mainFile)
             let content = try String(contentsOf: fileURL, encoding: .utf8)
-            
+        
             self.loadedData = (sketch, content)
+            self.errorMessage = nil
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error loading sketch: \(error)")
@@ -50,18 +47,28 @@ struct SketchEditorView: View {
 struct SketchEditorRealView: View {
     @Environment(ArduinoController.self) private var controller
     let sketch: Cc_Arduino_Cli_Commands_V1_Sketch
+    let initialContent: String
     
     @State private var editorText: String
+    @State private var activeSketch: Cc_Arduino_Cli_Commands_V1_Sketch
     @Environment(\.colorScheme) private var colorScheme: ColorScheme
     
     init(sketch: Cc_Arduino_Cli_Commands_V1_Sketch, initialContent: String) {
         self.sketch = sketch
+        self.initialContent = initialContent
         self._editorText = State(initialValue: initialContent)
+        self._activeSketch = State(initialValue: sketch)
     }
     
     var body: some View {
         VStack {
             MonacoEditorView(text: $editorText, language: "cpp")
+        }
+        .onChange(of: initialContent) { _, newContent in
+            editorText = newContent
+        }
+        .onChange(of: sketch.mainFile) { _, _ in
+            activeSketch = sketch
         }
         .background {
             Button("Save") {
@@ -73,12 +80,12 @@ struct SketchEditorRealView: View {
     }
     
     private func saveSketchContent() {
-        let fileURL = URL(fileURLWithPath: sketch.mainFile)
+        let fileURL = URL(fileURLWithPath: activeSketch.mainFile)
         do {
             try editorText.write(to: fileURL, atomically: true, encoding: .utf8)
-            print("Saved successfully to \(sketch.mainFile)")
+            print("Saved successfully to \(activeSketch.mainFile)")
         } catch {
-            print("Failed to save file at \(sketch.mainFile): \(error)")
+            print("Failed to save file at \(activeSketch.mainFile): \(error)")
         }
     }
 }
