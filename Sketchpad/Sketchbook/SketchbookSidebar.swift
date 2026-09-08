@@ -35,7 +35,10 @@ struct SketchbookSidebar : View {
             }
         }
         .sheet(isPresented: $showNewSketchModal) {
-            SketchbookNewModalView(showNewSketchModal: $showNewSketchModal).environment(controller)
+            SketchbookNewModalView(
+                showNewSketchModal: $showNewSketchModal
+            )
+            .environment(controller)
         }
     }
 }
@@ -50,6 +53,8 @@ struct SketchbookNewModalView : View {
     @State private var selectedFolderURL: URL? = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
     @State private var showFolderPicker: Bool = false
     
+    @State private var createError : Bool = false
+    
     private var previewPath: String? {
         let trimmedName = sketchName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty, let folderURL = selectedFolderURL else {
@@ -57,7 +62,10 @@ struct SketchbookNewModalView : View {
         }
         
         let fileName = trimmedName.hasSuffix(".ino") ? trimmedName : "\(trimmedName).ino"
-        return folderURL.appendingPathComponent(fileName).path(percentEncoded: false)
+        return folderURL
+            .appendingPathComponent(sketchName)
+            .appendingPathComponent(fileName)
+            .path(percentEncoded: false)
     }
     
     var body : some View {
@@ -85,6 +93,10 @@ struct SketchbookNewModalView : View {
                     }
                 }
             }
+            
+            if createError {
+                Text("Sketch with this name already exists.").foregroundStyle(Color.red)
+            }
                 
         }.padding(16)
         .toolbar {
@@ -103,6 +115,7 @@ struct SketchbookNewModalView : View {
                         .debug(
                             "Create New Sketch With name \(sketchName) and path \(selectedFolderURL?.path(percentEncoded: false).description ?? "nil")"
                         )
+                    createSketch()
                 }
                 .disabled(sketchName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .buttonStyle(.glassProminent)
@@ -127,4 +140,23 @@ struct SketchbookNewModalView : View {
             }
         }
     }
+    
+    func createSketch() {
+        Task {
+            var rsp = await controller.createSketch(
+                sketchName: sketchName,
+                sketchDir: selectedFolderURL?.path(percentEncoded: false) ?? ""
+            )
+            logger.log("\(rsp.description)")
+            
+            if(rsp != "Unknown"){
+                createError = false
+                showNewSketchModal = false // Close modal after sketch creation succeeds
+            }
+            else {
+                createError = true
+            }
+        }
+    }
+
 }

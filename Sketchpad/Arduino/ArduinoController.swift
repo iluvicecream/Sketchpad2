@@ -114,4 +114,26 @@ import os
             return "Unknown"
         }
     }
+    
+    func createSketch(sketchName : String,sketchDir: String,override: Bool = false) async -> String {
+        guard await ArduinoCliDaemonHost.shared.isGRPCReady,
+            let client = await ArduinoCliDaemonHost.shared.arduinoCoreClient else {
+            logger.error("gRPC client is nil or not ready.")
+            phase = .failed("gRPC connection unavailable")
+            return "Unknown"
+        }
+        do {
+            var request = Cc_Arduino_Cli_Commands_V1_NewSketchRequest()
+            request.overwrite = override
+            request.sketchDir = sketchDir
+            request.sketchName = sketchName
+            let response = try await client.newSketch(request)
+            logger.debug("NewSketchResponse mainFile: \(response.mainFile)")
+            return response.mainFile
+            
+        } catch {
+            self.logger.error("Failed to request version")
+            return "Unknown"
+        }
+    }
 }
