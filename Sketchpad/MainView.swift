@@ -16,39 +16,28 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             VStack {
-                Picker("",selection: $selectedModule ) {
-                    Label("Test 1",systemImage:"tray.and.arrow.down.fill").tag(0)
-                    Label("Test 2",systemImage:"tray.and.arrow.down.fill").tag(1)
-                    Label("Test 3",systemImage:"tray.and.arrow.down.fill").tag(2)
-                }
-                .pickerStyle(.tabs)
-                .labelsHidden()
-                .padding(.horizontal,16)
-                .controlSize(.large).buttonSizing(.flexible)
-                
                 switch selectedModule {
                 case 0 :
-                    List {
-                        NavigationLink {
-                            Text("Item")
-                        } label: {
-                            Text("Item 1")
-                        }
-                        
-                        NavigationLink {
-                            Text("Boards Manager")
-                        } label: {
-                            Text("Item 2")
-                        }
-                    }
+                    SketchbookSidebar().environment(controller)
                 case 1:
                     Text("bowowow")
                 case 2:
                     Text("seg")
+                case 3:
+                    Text("love")
                 default:
                     Text("the fuck")
                 }
             }
+            .toolbar{
+                Picker("",selection: $selectedModule){
+                    Label("folder",systemImage: "folder").tag(0)
+                    Label("memorychip",systemImage:"memorychip").tag(1)
+                    Label("books.vertical.fill",systemImage:"books.vertical").tag(2)
+                    Label("magnifyingglass",systemImage:"magnifyingglass").tag(3)
+                }.pickerStyle(.tabs).controlSize(.extraLarge).buttonSizing(.flexible)
+            }
+            .navigationSplitViewColumnWidth(min: 310, ideal: 310)
         } detail : {
             Text(controller.arduinoInstance.id.description)
             Text(version).task {
