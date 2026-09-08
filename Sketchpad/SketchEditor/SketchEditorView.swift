@@ -1,5 +1,6 @@
 import SwiftUI
-import SwiftProtobuf
+import CodeEditorView
+import LanguageSupport
 
 struct SketchEditorView: View {
     @Environment(ArduinoController.self) private var controller
@@ -26,19 +27,30 @@ struct SketchEditorRealView: View {
     let sketch: Cc_Arduino_Cli_Commands_V1_Sketch
     
     @State private var editorText: String = ""
+    @State private var position: CodeEditor.Position       = CodeEditor.Position()
+    @State private var messages: Set<TextLocated<Message>> = Set()
+    @Environment(\.colorScheme) private var colorScheme: ColorScheme
     
     var body: some View {
         VStack {
-            Text("Editing: \(sketch.mainFile)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            TextEditor(text: $editorText)
-                .font(.system(.body, design: .monospaced))
-                .padding()
+            CodeEditor(
+                text: $editorText,
+                position: $position,
+                messages: $messages,
+                language: .swift()
+            )
+            .environment(\.codeEditorTheme,
+                         colorScheme == .dark ? Theme.defaultDark : Theme.defaultLight)
         }
         .task(id: sketch.mainFile) {
             loadSketchContent()
+        }
+        .background {
+            Button("Save") {
+                saveSketchContent()
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .hidden()
         }
     }
     
@@ -48,6 +60,16 @@ struct SketchEditorRealView: View {
             editorText = try String(contentsOf: fileURL, encoding: .utf8)
         } catch {
             print("Failed to load file at \(sketch.mainFile): \(error)")
+        }
+    }
+    
+    private func saveSketchContent() {
+        let fileURL = URL(fileURLWithPath: sketch.mainFile)
+        do {
+            try editorText.write(to: fileURL, atomically: true, encoding: .utf8)
+            print("Saved successfully to \(sketch.mainFile)")
+        } catch {
+            print("Failed to save file at \(sketch.mainFile): \(error)")
         }
     }
 }
