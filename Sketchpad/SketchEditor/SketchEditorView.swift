@@ -14,6 +14,13 @@ struct SketchEditorView: View {
                     sketch: loadedData.sketch,
                     initialContent: loadedData.content
                 )
+                .toolbar {
+                    Button {
+                        
+                    } label : {
+                        Text("compile")
+                    }
+                }
             } else if let errorMessage {
                 ContentUnavailableView(
                     "Failed to Load Sketch",

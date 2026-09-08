@@ -48,13 +48,6 @@ struct MainView: View {
             }
         
         }
-        .toolbar {
-            Button {
-                
-            } label : {
-                Text("compile")
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
