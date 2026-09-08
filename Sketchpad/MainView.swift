@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct MainView: View {
     @Environment(ArduinoController.self) private var controller
@@ -18,7 +19,7 @@ struct MainView: View {
             VStack {
                 switch selectedModule {
                 case 0 :
-                    SketchbookSidebar().environment(controller)
+                    SketchbookSidebar().environment(controller).modelContainer(for: SketchbookHistoryData.self)
                 case 1:
                     Text("bowowow")
                 case 2:

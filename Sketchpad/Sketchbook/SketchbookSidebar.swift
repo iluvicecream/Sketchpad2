@@ -8,9 +8,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import os
+import SwiftData
 
 struct SketchbookSidebar : View {
     @Environment(ArduinoController.self) private var controller
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: [SortDescriptor(\SketchbookHistoryData.last_opened, order: .reverse)]) private var recentSketches: [SketchbookHistoryData]
     @State private var showNewSketchModal = false
     
     var body : some View {
@@ -26,11 +29,13 @@ struct SketchbookSidebar : View {
                 .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
             }
-            NavigationLink(value: "newmodal") {
-                HStack {
-                    Text("Sketch 08 Sep")
-                    Spacer()
-                    
+            
+            ForEach(recentSketches) { item in
+                NavigationLink(value: item.sketch_dir) {
+                    HStack {
+                        Text(item.sketch_name)
+                        Spacer()
+                    }
                 }
             }
         }
@@ -45,6 +50,7 @@ struct SketchbookSidebar : View {
 
 struct SketchbookNewModalView : View {
     @Environment(ArduinoController.self) private var controller
+    @Environment(\.modelContext) private var modelContext
     @Binding var showNewSketchModal: Bool
     
     private let logger: Logger = Logger(subsystem: "com.perr.Sketchpad", category: "NewSketchModal")
@@ -149,8 +155,15 @@ struct SketchbookNewModalView : View {
             )
             logger.log("\(rsp.description)")
             
+            let historyManager = SketchbookHistoryManager(modelContext: modelContext)
+
             if(rsp != "Unknown"){
                 createError = false
+                historyManager.recordAccess(
+                    name: sketchName,
+                    mainDir: rsp,
+                    dir: selectedFolderURL?.path(percentEncoded: false) ?? ""
+                )
                 showNewSketchModal = false // Close modal after sketch creation succeeds
             }
             else {

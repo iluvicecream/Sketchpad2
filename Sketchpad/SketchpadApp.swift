@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct BenchApp: App {
@@ -16,6 +17,7 @@ struct BenchApp: App {
             if controller.phase == .ready {
                 MainView()
                     .environment(controller)
+                    .modelContainer(for: SketchbookHistoryData.self)
             }else {
                 BootstrapView()
                     .environment(controller)
