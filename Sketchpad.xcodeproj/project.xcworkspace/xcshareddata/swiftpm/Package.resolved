@@ -1,6 +1,15 @@
 {
-  "originHash" : "21721ee9d1eafe1b399780513f8a322902043100a2ca37aa14a9e155c76eb8f6",
+  "originHash" : "818aa3a1ca990aba7204fbf1787e462ef1dcf2d07ae57ff199a599ed806ab86b",
   "pins" : [
+    {
+      "identity" : "codeeditorview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mchakravarty/CodeEditorView",
+      "state" : {
+        "revision" : "5386056ab53d43363083cb96069715a9608aa048",
+        "version" : "0.16.0"
+      }
+    },
     {
       "identity" : "grpc-swift-2",
       "kind" : "remoteSourceControl",
@@ -26,6 +35,15 @@
       "state" : {
         "revision" : "176c5a434fd76f6f479848d1a8f7d44967534168",
         "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "rearrange",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ChimeHQ/Rearrange.git",
+      "state" : {
+        "revision" : "5ff7f3363f7a08f77e0d761e38e6add31c2136e1",
+        "version" : "1.8.1"
       }
     },
     {

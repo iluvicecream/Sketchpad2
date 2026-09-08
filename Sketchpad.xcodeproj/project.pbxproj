@@ -13,6 +13,8 @@
 		4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */; };
 		4382D163304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */; };
 		4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */; };
+		43D3027230506BC600FB9CF5 /* CodeEditorView in Frameworks */ = {isa = PBXBuildFile; productRef = 43D3027130506BC600FB9CF5 /* CodeEditorView */; };
+		43D3027430506BC600FB9CF5 /* LanguageSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 43D3027330506BC600FB9CF5 /* LanguageSupport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,11 +33,13 @@
 		438B404D304C39F400362ECD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				43D3027430506BC600FB9CF5 /* LanguageSupport in Frameworks */,
 				4382D163304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix in Frameworks */,
 				4382D15E304D657300880B95 /* GRPCProtobuf in Frameworks */,
 				4382D15B304D63BE00880B95 /* SwiftProtobufPluginLibrary in Frameworks */,
 				4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */,
 				4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */,
+				43D3027230506BC600FB9CF5 /* CodeEditorView in Frameworks */,
 				4382D159304D63BE00880B95 /* SwiftProtobuf in Frameworks */,
 			);
 		};
@@ -82,6 +86,8 @@
 				4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */,
 				4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */,
 				4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */,
+				43D3027130506BC600FB9CF5 /* CodeEditorView */,
+				43D3027330506BC600FB9CF5 /* LanguageSupport */,
 			);
 			productName = Bench;
 			productReference = 438B4050304C39F400362ECD /* Sketchpad.app */;
@@ -115,6 +121,7 @@
 				4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
 				4382D15C304D657300880B95 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
 				4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
+				43D3027030506BC600FB9CF5 /* XCRemoteSwiftPackageReference "CodeEditorView" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 438B4051304C39F400362ECD /* Products */;
@@ -377,6 +384,14 @@
 				minimumVersion = 2.9.2;
 			};
 		};
+		43D3027030506BC600FB9CF5 /* XCRemoteSwiftPackageReference "CodeEditorView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mchakravarty/CodeEditorView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.16.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -409,6 +424,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
 			productName = GRPCNIOTransportHTTP2TransportServices;
+		};
+		43D3027130506BC600FB9CF5 /* CodeEditorView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43D3027030506BC600FB9CF5 /* XCRemoteSwiftPackageReference "CodeEditorView" */;
+			productName = CodeEditorView;
+		};
+		43D3027330506BC600FB9CF5 /* LanguageSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43D3027030506BC600FB9CF5 /* XCRemoteSwiftPackageReference "CodeEditorView" */;
+			productName = LanguageSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
