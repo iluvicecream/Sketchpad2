@@ -1,23 +1,48 @@
 import SwiftUI
-import CodeEditorView
-import LanguageSupport
 
 struct SketchEditorView: View {
     @Environment(ArduinoController.self) private var controller
     var mainDir: String
     
-    @State private var sketch: Cc_Arduino_Cli_Commands_V1_Sketch?
+    @State private var loadedData: (sketch: Cc_Arduino_Cli_Commands_V1_Sketch, content: String)?
+    @State private var errorMessage: String?
     
     var body: some View {
         Group {
-            if let sketch {
-                SketchEditorRealView(sketch: sketch)
+            if let loadedData {
+                SketchEditorRealView(
+                    sketch: loadedData.sketch,
+                    initialContent: loadedData.content
+                )
+                .id(loadedData.sketch.mainFile)
+            } else if let errorMessage {
+                ContentUnavailableView(
+                    "Failed to Load Sketch",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(errorMessage)
+                )
             } else {
                 ProgressView("Loading sketch...")
             }
         }
         .task(id: mainDir) {
-            sketch = try? await controller.loadSketch(mainDir: mainDir)
+            await loadSketchAndContent()
+        }
+    }
+    
+    private func loadSketchAndContent() async {
+        loadedData = nil
+        errorMessage = nil
+        
+        do {
+            let sketch = try await controller.loadSketch(mainDir: mainDir)
+            let fileURL = URL(fileURLWithPath: sketch.mainFile)
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            
+            self.loadedData = (sketch, content)
+        } catch {
+            self.errorMessage = error.localizedDescription
+            print("Error loading sketch: \(error)")
         }
     }
 }
@@ -26,24 +51,17 @@ struct SketchEditorRealView: View {
     @Environment(ArduinoController.self) private var controller
     let sketch: Cc_Arduino_Cli_Commands_V1_Sketch
     
-    @State private var editorText: String = ""
-    @State private var position: CodeEditor.Position       = CodeEditor.Position()
-    @State private var messages: Set<TextLocated<Message>> = Set()
+    @State private var editorText: String
     @Environment(\.colorScheme) private var colorScheme: ColorScheme
+    
+    init(sketch: Cc_Arduino_Cli_Commands_V1_Sketch, initialContent: String) {
+        self.sketch = sketch
+        self._editorText = State(initialValue: initialContent)
+    }
     
     var body: some View {
         VStack {
-            CodeEditor(
-                text: $editorText,
-                position: $position,
-                messages: $messages,
-                language: .swift()
-            )
-            .environment(\.codeEditorTheme,
-                         colorScheme == .dark ? Theme.defaultDark : Theme.defaultLight)
-        }
-        .task(id: sketch.mainFile) {
-            loadSketchContent()
+            MonacoEditorView(text: $editorText, language: "cpp")
         }
         .background {
             Button("Save") {
@@ -51,15 +69,6 @@ struct SketchEditorRealView: View {
             }
             .keyboardShortcut("s", modifiers: .command)
             .hidden()
-        }
-    }
-    
-    private func loadSketchContent() {
-        let fileURL = URL(fileURLWithPath: sketch.mainFile)
-        do {
-            editorText = try String(contentsOf: fileURL, encoding: .utf8)
-        } catch {
-            print("Failed to load file at \(sketch.mainFile): \(error)")
         }
     }
     

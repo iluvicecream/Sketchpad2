@@ -46,6 +46,14 @@ struct MainView: View {
                 let mainDir = String(selectedEditorMainView.trimmingPrefix("SketchEditor_"))
                 SketchEditorView(mainDir: mainDir).environment(controller)
             }
+        
+        }
+        .toolbar {
+            Button {
+                
+            } label : {
+                Text("compile")
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
