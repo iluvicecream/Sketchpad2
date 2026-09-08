@@ -43,8 +43,9 @@ struct MainView: View {
             .navigationSplitViewColumnWidth(min: 310, ideal: 310)
         } detail : {
             if(selectedEditorMainView.starts(with: "SketchEditor_")) {
-                let mainDir = String(selectedEditorMainView.trimmingPrefix("SketchEditor_"))
-                
+                Text(selectedEditorMainView)
+                var mainDir = String(selectedEditorMainView.trimmingPrefix("SketchEditor_"))
+                SketchEditorView(mainDir: mainDir).environment(controller)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

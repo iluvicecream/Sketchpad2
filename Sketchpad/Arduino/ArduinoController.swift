@@ -7,6 +7,7 @@
 
 import Foundation
 import os
+import SwiftProtobuf
 
 @MainActor @Observable final class ArduinoController {
     enum Phase : Equatable {
@@ -134,6 +135,26 @@ import os
         } catch {
             self.logger.error("Failed to request version")
             return "Unknown"
+        }
+    }
+    
+    func loadSketch(mainDir: String) async throws -> Cc_Arduino_Cli_Commands_V1_Sketch {
+        guard await ArduinoCliDaemonHost.shared.isGRPCReady,
+            let client = await ArduinoCliDaemonHost.shared.arduinoCoreClient else {
+            logger.error("gRPC client is nil or not ready.")
+            phase = .failed("gRPC connection unavailable")
+            throw NSError(domain: "AppError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Something went wrong."])
+        }
+        do {
+            var request = Cc_Arduino_Cli_Commands_V1_LoadSketchRequest()
+            request.sketchPath = mainDir
+            let response = try await client.loadSketch(request)
+            logger.debug("NewSketchResponse sketch: \(response.sketch.debugDescription)")
+            return response.sketch
+            
+        } catch {
+            self.logger.error("Failed to request version")
+            throw NSError(domain: "AppError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Something went wrong."])
         }
     }
 }
