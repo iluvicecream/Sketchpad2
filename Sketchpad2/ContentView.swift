@@ -12,8 +12,6 @@ struct ContentView: View {
 
     var body: some View {
         CodeEditorView(text: $document.text)
-            // Let the editor run the full window height so its content can scroll under the
-            // title bar, where AppKit applies the standard scroll edge treatment.
             .ignoresSafeArea(.container, edges: .top)
     }
 }
