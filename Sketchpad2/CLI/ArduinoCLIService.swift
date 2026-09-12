@@ -20,9 +20,6 @@ protocol ArduinoCLIServicing: Sendable {
 /// `ensureReady()` and lets `MainController` decide what that means for the UI.
 nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
 
-    /// The daemon port plus the Arduino Core instance created on it.
-    private typealias Session = (port: Int, instance: ArduinoCoreInstance)
-
     private nonisolated static let downloadURL = URL(
         string: "https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_macOS_ARM64.tar.gz"
     )!
@@ -51,7 +48,7 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
             let task = Task.detached(priority: .userInitiated) { [self] in
                 do {
                     let session = try await start(yield: { continuation.yield($0) })
-                    continuation.yield(.ready(port: session.port, instance: session.instance))
+                    continuation.yield(.ready(session))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -63,14 +60,14 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
 
     func shutdown() {
         logger.log("Shutting down arduino-cli")
-        let session = runtime.takeAll()
+        let teardown = runtime.takeAll()
 
-        if let coreService = session.coreService, let instance = session.instance {
-            coreService.destroyInstance(instance)
+        if let coreService = teardown.coreService, let session = teardown.session {
+            coreService.destroyInstance(session.instance)
         }
 
-        session.coreService?.shutdown()
-        if let process = session.process, process.isRunning {
+        teardown.coreService?.shutdown()
+        if let process = teardown.process, process.isRunning {
             process.terminate()
         }
     }
@@ -81,7 +78,9 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
 
     // MARK: - Pipeline
 
-    private func start(yield: @escaping @Sendable (ArduinoCLIProgress) -> Void) async throws -> Session {
+    private func start(
+        yield: @escaping @Sendable (ArduinoCLIProgress) -> Void
+    ) async throws -> ArduinoCLISession {
         if let session = runtime.currentSession() {
             logger.log("Reusing the arduino-cli daemon on port \(session.port) with instance \(session.instance.id)")
             return session
@@ -93,7 +92,7 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         return try await task.value
     }
 
-    private func runPipeline(yield: @Sendable (ArduinoCLIProgress) -> Void) async throws -> Session {
+    private func runPipeline(yield: @Sendable (ArduinoCLIProgress) -> Void) async throws -> ArduinoCLISession {
         yield(.checking)
         let binary = try await ensureBinaryInstalled(yield: yield)
 
@@ -114,16 +113,27 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
             throw error
         }
 
+        let instance: ArduinoCoreInstance
         do {
-            let instance = try await core.createInstance()
-            let session: Session = (port: port, instance: instance)
-            runtime.record(instance: instance)
+            instance = try await core.createInstance()
             logger.log("Created Arduino Core instance \(instance.id)")
-            return session
         } catch {
             runtime.shutdownDaemon()
             throw ArduinoCLIError.instanceCreationFailed(reason: error.localizedDescription)
         }
+
+        let version: String
+        do {
+            version = try await core.currentVersion()
+            logger.log("arduino-cli version \(version, privacy: .public)")
+        } catch {
+            runtime.shutdownDaemon()
+            throw ArduinoCLIError.versionRequestFailed(reason: error.localizedDescription)
+        }
+
+        let session = ArduinoCLISession(port: port, instance: instance, version: version)
+        runtime.record(session: session)
+        return session
     }
 
     // MARK: - Installation
@@ -275,15 +285,12 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var port: Int?
-    private var instance: ArduinoCoreInstance?
+    private var session: ArduinoCLISession?
     private var coreService: ArduinoCoreService?
-    private var startupTask: Task<(port: Int, instance: ArduinoCoreInstance), Error>?
+    private var startupTask: Task<ArduinoCLISession, Error>?
 
-    func currentSession() -> (port: Int, instance: ArduinoCoreInstance)? {
-        lock.withLock {
-            guard let port, let instance else { return nil }
-            return (port, instance)
-        }
+    func currentSession() -> ArduinoCLISession? {
+        lock.withLock { session }
     }
 
     func runningPort() -> Int? {
@@ -300,8 +307,8 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
         }
     }
 
-    func record(instance: ArduinoCoreInstance) {
-        lock.withLock { self.instance = instance }
+    func record(session: ArduinoCLISession) {
+        lock.withLock { self.session = session }
     }
 
     func record(coreService: ArduinoCoreService) {
@@ -313,10 +320,10 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
     }
 
     func shutdownDaemon() {
-        let session = takeAll()
+        let teardown = takeAll()
 
-        session.coreService?.shutdown()
-        if let process = session.process, process.isRunning {
+        teardown.coreService?.shutdown()
+        if let process = teardown.process, process.isRunning {
             process.terminate()
         }
     }
@@ -325,21 +332,21 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
     func takeAll() -> (
         process: Process?,
         coreService: ArduinoCoreService?,
-        instance: ArduinoCoreInstance?
+        session: ArduinoCLISession?
     ) {
         lock.withLock {
-            let session = (process, coreService, instance)
+            let teardown = (process, coreService, session)
             process = nil
             port = nil
-            instance = nil
+            session = nil
             coreService = nil
-            return session
+            return teardown
         }
     }
 
     func joinOrStart(
-        _ body: @escaping @Sendable () async throws -> (port: Int, instance: ArduinoCoreInstance)
-    ) -> Task<(port: Int, instance: ArduinoCoreInstance), Error> {
+        _ body: @escaping @Sendable () async throws -> ArduinoCLISession
+    ) -> Task<ArduinoCLISession, Error> {
         lock.withLock {
             if let existing = startupTask {
                 return existing

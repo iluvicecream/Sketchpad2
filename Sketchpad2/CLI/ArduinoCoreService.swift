@@ -48,6 +48,18 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         return response.instance
     }
 
+    /// The arduino-cli version the daemon reports.
+    func currentVersion() async throws -> String {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        let response: Cc_Arduino_Cli_Commands_V1_VersionResponse = try await core.version(
+            Cc_Arduino_Cli_Commands_V1_VersionRequest(),
+            options: options
+        )
+        return response.version
+    }
+
     /// Destroys the given Arduino Core instance, waiting up to `timeout` for the daemon's reply.
     ///
     /// This blocks the calling thread so it can run from `applicationWillTerminate`, where the app

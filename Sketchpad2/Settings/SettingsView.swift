@@ -56,6 +56,7 @@ private struct ArduinoCLISettingsView: View {
         Form {
             Section("arduino-cli") {
                 LabeledContent("Status", value: statusText)
+                LabeledContent("Version", value: mainController.arduinoCLIVersion ?? "—")
                 LabeledContent("Daemon port", value: mainController.daemonPort.map(String.init) ?? "—")
                 LabeledContent("Instance", value: instanceText)
             }

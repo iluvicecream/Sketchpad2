@@ -29,6 +29,9 @@ final class MainController {
     /// The Arduino Core instance created on the daemon via the `Create` RPC.
     private(set) var instance: ArduinoCoreInstance?
 
+    /// The arduino-cli version reported by the daemon at startup.
+    private(set) var arduinoCLIVersion: String?
+
     /// The shared gRPC connection to the daemon, available once setup finishes.
     var coreService: ArduinoCoreService? {
         service.coreService
@@ -82,6 +85,7 @@ final class MainController {
         service.shutdown()
         daemonPort = nil
         instance = nil
+        arduinoCLIVersion = nil
         phase = .idle
     }
 
@@ -116,10 +120,11 @@ final class MainController {
             phase = .extracting
         case .startingDaemon:
             phase = .startingDaemon
-        case .ready(let port, let instance):
-            daemonPort = port
-            self.instance = instance
-            phase = .ready(port: port)
+        case .ready(let session):
+            daemonPort = session.port
+            instance = session.instance
+            arduinoCLIVersion = session.version
+            phase = .ready(port: session.port)
             setupTask = nil
         }
     }
