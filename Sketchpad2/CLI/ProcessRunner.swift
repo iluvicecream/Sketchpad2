@@ -56,6 +56,10 @@ nonisolated enum ProcessRunner {
         process.executableURL = executable
         process.arguments = arguments
 
+        // arduino-cli's daemon exits as soon as its stdin reaches EOF, and a GUI app's stdin is
+        // an immediate EOF, so hold it open for as long as we want the daemon to keep running.
+        process.standardInput = Pipe()
+
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe

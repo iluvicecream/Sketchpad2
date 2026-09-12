@@ -5,7 +5,6 @@
 
 import AppKit
 import Foundation
-import GRPCNIOTransportHTTP2
 import Observation
 
 /// App-wide root controller. Owns the observable state the UI binds to and delegates the work
@@ -27,6 +26,13 @@ final class MainController {
 
     private(set) var phase: Phase = .idle
     private(set) var daemonPort: Int?
+    /// The Arduino Core instance created on the daemon via the `Create` RPC.
+    private(set) var instance: ArduinoCoreInstance?
+
+    /// The shared gRPC connection to the daemon, available once setup finishes.
+    var coreService: ArduinoCoreService? {
+        service.coreService
+    }
 
     private let service: any ArduinoCLIServicing
     private var setupTask: Task<Void, Never>?
@@ -75,18 +81,8 @@ final class MainController {
         setupTask = nil
         service.shutdown()
         daemonPort = nil
+        instance = nil
         phase = .idle
-    }
-
-    /// A transport pointed at the running daemon. RPCs are wired up in a later change.
-    func clientTransport() throws -> HTTP2ClientTransport.Posix {
-        guard case .ready(let port) = phase else {
-            throw ArduinoCLIError.daemonStartFailed(reason: "The arduino-cli daemon isn't running yet.")
-        }
-        return try HTTP2ClientTransport.Posix(
-            target: .ipv4(address: "127.0.0.1", port: port),
-            transportSecurity: .plaintext
-        )
     }
 
     private func runSetup() {
@@ -120,8 +116,9 @@ final class MainController {
             phase = .extracting
         case .startingDaemon:
             phase = .startingDaemon
-        case .ready(let port):
+        case .ready(let port, let instance):
             daemonPort = port
+            self.instance = instance
             phase = .ready(port: port)
             setupTask = nil
         }

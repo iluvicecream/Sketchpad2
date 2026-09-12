@@ -10,6 +10,7 @@ import os
 /// The work required to hand a running arduino-cli daemon to the rest of the app.
 protocol ArduinoCLIServicing: Sendable {
     func ensureReady() -> AsyncThrowingStream<ArduinoCLIProgress, Error>
+    var coreService: ArduinoCoreService? { get }
     func shutdown()
 }
 
@@ -18,6 +19,9 @@ protocol ArduinoCLIServicing: Sendable {
 /// The service never touches SwiftUI state. It reports progress through the stream returned by
 /// `ensureReady()` and lets `MainController` decide what that means for the UI.
 nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
+
+    /// The daemon port plus the Arduino Core instance created on it.
+    private typealias Session = (port: Int, instance: ArduinoCoreInstance)
 
     private nonisolated static let downloadURL = URL(
         string: "https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_macOS_ARM64.tar.gz"
@@ -43,8 +47,8 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) { [self] in
                 do {
-                    let port = try await start(yield: { continuation.yield($0) })
-                    continuation.yield(.ready(port: port))
+                    let session = try await start(yield: { continuation.yield($0) })
+                    continuation.yield(.ready(port: session.port, instance: session.instance))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -55,17 +59,20 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
     }
 
     func shutdown() {
-        guard let process = runtime.takeProcess(), process.isRunning else { return }
         logger.log("Stopping arduino-cli daemon")
-        process.terminate()
+        runtime.shutdownDaemon()
+    }
+
+    var coreService: ArduinoCoreService? {
+        runtime.coreServiceInstance()
     }
 
     // MARK: - Pipeline
 
-    private func start(yield: @escaping @Sendable (ArduinoCLIProgress) -> Void) async throws -> Int {
-        if let port = runtime.currentPort(), runtime.isDaemonRunning() {
-            logger.log("Reusing the running arduino-cli daemon on port \(port)")
-            return port
+    private func start(yield: @escaping @Sendable (ArduinoCLIProgress) -> Void) async throws -> Session {
+        if let session = runtime.currentSession() {
+            logger.log("Reusing the arduino-cli daemon on port \(session.port) with instance \(session.instance.id)")
+            return session
         }
 
         let task = runtime.joinOrStart { [self] in
@@ -74,11 +81,37 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         return try await task.value
     }
 
-    private func runPipeline(yield: @Sendable (ArduinoCLIProgress) -> Void) async throws -> Int {
+    private func runPipeline(yield: @Sendable (ArduinoCLIProgress) -> Void) async throws -> Session {
         yield(.checking)
         let binary = try await ensureBinaryInstalled(yield: yield)
-        yield(.startingDaemon)
-        return try await launchDaemon(binary: binary)
+
+        let port: Int
+        if let runningPort = runtime.runningPort() {
+            port = runningPort
+        } else {
+            yield(.startingDaemon)
+            port = try await launchDaemon(binary: binary)
+        }
+
+        let core: ArduinoCoreService
+        do {
+            core = try await sharedCoreService(port: port)
+            runtime.record(coreService: core)
+        } catch {
+            runtime.shutdownDaemon()
+            throw error
+        }
+
+        do {
+            let instance = try await core.createInstance()
+            let session: Session = (port: port, instance: instance)
+            runtime.record(instance: instance)
+            logger.log("Created Arduino Core instance \(instance.id)")
+            return session
+        } catch {
+            runtime.shutdownDaemon()
+            throw ArduinoCLIError.instanceCreationFailed(reason: error.localizedDescription)
+        }
     }
 
     // MARK: - Installation
@@ -203,6 +236,19 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
             reason: "Timed out waiting for the daemon to listen on 127.0.0.1:\(port)."
         )
     }
+
+    // MARK: - Instance
+
+    /// Opens the single gRPC connection every RPC shares.
+    private func sharedCoreService(port: Int) async throws -> ArduinoCoreService {
+        do {
+            return try await MainActor.run {
+                try ArduinoCoreService(port: port)
+            }
+        } catch {
+            throw ArduinoCLIError.connectionFailed(reason: error.localizedDescription)
+        }
+    }
 }
 
 /// Serializes access to the shared pipeline and daemon so concurrent callers cannot double-start.
@@ -210,14 +256,22 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var port: Int?
-    private var startupTask: Task<Int, Error>?
+    private var instance: ArduinoCoreInstance?
+    private var coreService: ArduinoCoreService?
+    private var startupTask: Task<(port: Int, instance: ArduinoCoreInstance), Error>?
 
-    func currentPort() -> Int? {
-        lock.withLock { port }
+    func currentSession() -> (port: Int, instance: ArduinoCoreInstance)? {
+        lock.withLock {
+            guard let port, let instance else { return nil }
+            return (port, instance)
+        }
     }
 
-    func isDaemonRunning() -> Bool {
-        lock.withLock { process?.isRunning == true }
+    func runningPort() -> Int? {
+        lock.withLock {
+            guard process?.isRunning == true else { return nil }
+            return port
+        }
     }
 
     func record(process: Process, port: Int) {
@@ -227,16 +281,38 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
         }
     }
 
-    func takeProcess() -> Process? {
-        lock.withLock {
-            let existing = process
-            process = nil
-            port = nil
-            return existing
+    func record(instance: ArduinoCoreInstance) {
+        lock.withLock { self.instance = instance }
+    }
+
+    func record(coreService: ArduinoCoreService) {
+        lock.withLock { self.coreService = coreService }
+    }
+
+    func coreServiceInstance() -> ArduinoCoreService? {
+        lock.withLock { coreService }
+    }
+
+    func shutdownDaemon() {
+        let (process, coreService) = lock.withLock {
+            let process = self.process
+            let coreService = self.coreService
+            self.process = nil
+            self.port = nil
+            self.instance = nil
+            self.coreService = nil
+            return (process, coreService)
+        }
+
+        coreService?.shutdown()
+        if let process, process.isRunning {
+            process.terminate()
         }
     }
 
-    func joinOrStart(_ body: @escaping @Sendable () async throws -> Int) -> Task<Int, Error> {
+    func joinOrStart(
+        _ body: @escaping @Sendable () async throws -> (port: Int, instance: ArduinoCoreInstance)
+    ) -> Task<(port: Int, instance: ArduinoCoreInstance), Error> {
         lock.withLock {
             if let existing = startupTask {
                 return existing
