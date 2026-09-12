@@ -15,9 +15,10 @@ struct BenchApp: App {
     var body: some Scene {
         DocumentGroup(newDocument: SketchDocument()){ file in
             if controller.phase == .ready {
-                MainView()
+                MainView(
+                    sketch: file.$document
+                )
                     .environment(controller)
-                    .modelContainer(for: SketchbookHistoryData.self)
             }else {
                 BootstrapView()
                     .environment(controller)

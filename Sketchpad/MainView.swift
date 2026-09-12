@@ -16,42 +16,20 @@ struct MainView: View {
     
     @State private var selectedEditorMainView : String = ""
     
+    @Binding var sketch: SketchDocument
+    
+    @Environment(\.documentConfiguration) private var docConfig
+
+    var fileURL: URL? {
+        docConfig?.fileURL
+    }
+    
     var body: some View {
-        NavigationSplitView {
-            VStack {
-                switch selectedModule {
-                case 0 :
-                    SketchbookSidebar(selectedEditorMainView: $selectedEditorMainView).environment(controller).modelContainer(for: SketchbookHistoryData.self)
-                case 1:
-                    Text("bowowow")
-                case 2:
-                    Text("seg")
-                case 3:
-                    Text("love")
-                default:
-                    Text("the fuck")
-                }
+        VStack {
+            if controller.phase == .ready {
+                SketchEditorView(document: $sketch)
             }
-            .toolbar{
-                Picker("",selection: $selectedModule){
-                    Label("folder",systemImage: "folder").tag(0)
-                    Label("memorychip",systemImage:"memorychip").tag(1)
-                    Label("books.vertical.fill",systemImage:"books.vertical").tag(2)
-                    Label("magnifyingglass",systemImage:"magnifyingglass").tag(3)
-                }.pickerStyle(.tabs).controlSize(.extraLarge).buttonSizing(.flexible)
-            }
-            .navigationSplitViewColumnWidth(min: 310, ideal: 310)
-        } detail : {
-            if(selectedEditorMainView.starts(with: "SketchEditor_")) {
-                let mainDir = String(selectedEditorMainView.trimmingPrefix("SketchEditor_"))
-                SketchEditorView(mainDir: mainDir).environment(controller)
-            }
-        
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-}
-
-#Preview {
-    MainView()
 }
