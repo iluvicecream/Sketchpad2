@@ -1,6 +1,14 @@
 //
-//  FileDocument.swift
+//  test2Document.swift
 //  Sketchpad
+//
+//  Created by perr on 9/12/2569 BE.
+//
+
+
+//
+//  test2Document.swift
+//  test2
 //
 //  Created by perr on 9/12/2569 BE.
 //
@@ -8,32 +16,49 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-extension UTType {
-    static var inoSketch: UTType {
-        UTType(exportedAs: "com.perr.Sketchpad.ino")
+@Observable
+final class test2Document: Document {
+
+    static let readableContentTypes: [UTType] = [.exampleText]
+
+    var text: String
+
+    init(text: String = "Hello, world!") {
+        self.text = text
+    }
+
+    nonisolated func reader(
+        configuration: sending ReadConfiguration
+    ) -> sending FileWrapperDocumentReader<String> {
+        FileWrapperDocumentReader(configuration) { fileWrapper in
+            guard let data = fileWrapper.regularFileContents else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            return String(decoding: data, as: UTF8.self)
+        }
+    }
+
+    nonisolated func writer(
+        configuration: sending WriteConfiguration
+    ) -> sending FileWrapperDocumentWriter<String> {
+        FileWrapperDocumentWriter(configuration) { snapshot, _ in
+            FileWrapper(regularFileWithContents: Data(snapshot.utf8))
+        }
+    }
+
+    @MainActor
+    func snapshot(contentType: UTType) async throws -> sending String {
+        text
+    }
+
+    @MainActor
+    func apply(snapshot: sending String, previous: sending String?) async throws {
+        text = snapshot
     }
 }
 
-struct SketchDocument: FileDocument {
-    var fileContent: String
-    
-    static var readableContentTypes: [UTType] { [.inoSketch, .plainText] }
-
-    init(fileContent: String = "void setup() {\n\n}\n\nvoid loop() {\n\n}") {
-        self.fileContent = fileContent
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents,
-              let string = String(data: data, encoding: .utf8)
-        else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        self.fileContent = string
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = Data(fileContent.utf8)
-        return .init(regularFileWithContents: data)
+extension UTType {
+    static var exampleText: UTType {
+        UTType(importedAs: "com.example.plain-text")
     }
 }
