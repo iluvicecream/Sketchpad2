@@ -31,6 +31,8 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
 
     let binaryURL: URL
 
+    /// arduino-cli's data directory, kept out of the shared `~/Library/Arduino15`.
+    private let dataDirectory: URL
     private let scratchDirectory: URL
     private let runtime = ArduinoCLIRuntime()
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "ArduinoCLI")
@@ -41,6 +43,7 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
             .appending(path: "com.perr.Sketchpad2", directoryHint: .isDirectory)
         self.scratchDirectory = supportDirectory.appending(path: "scratch", directoryHint: .isDirectory)
         self.binaryURL = supportDirectory.appending(path: "bin/arduino-cli", directoryHint: .notDirectory)
+        self.dataDirectory = supportDirectory.appending(path: "arduino15", directoryHint: .isDirectory)
     }
 
     func ensureReady() -> AsyncThrowingStream<ArduinoCLIProgress, Error> {
@@ -59,8 +62,17 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
     }
 
     func shutdown() {
-        logger.log("Stopping arduino-cli daemon")
-        runtime.shutdownDaemon()
+        logger.log("Shutting down arduino-cli")
+        let session = runtime.takeAll()
+
+        if let coreService = session.coreService, let instance = session.instance {
+            coreService.destroyInstance(instance)
+        }
+
+        session.coreService?.shutdown()
+        if let process = session.process, process.isRunning {
+            process.terminate()
+        }
     }
 
     var coreService: ArduinoCoreService? {
@@ -202,12 +214,19 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
 
     private func launchDaemon(binary: URL) async throws -> Int {
         let port = try ProcessRunner.reserveEphemeralPort()
+        logger.log("Starting arduino-cli daemon with data directory \(self.dataDirectory.path(percentEncoded: false), privacy: .public)")
 
         let process: Process
         do {
             process = try ProcessRunner.launchDaemon(
                 executable: binary,
-                arguments: ["daemon", "--port", String(port)]
+                arguments: [
+                    "--config-dir",
+                    dataDirectory.path(percentEncoded: false),
+                    "daemon",
+                    "--port",
+                    String(port),
+                ]
             ) { [logger] line in
                 guard !line.isEmpty else { return }
                 logger.debug("daemon: \(line, privacy: .public)")
@@ -294,19 +313,27 @@ private nonisolated final class ArduinoCLIRuntime: @unchecked Sendable {
     }
 
     func shutdownDaemon() {
-        let (process, coreService) = lock.withLock {
-            let process = self.process
-            let coreService = self.coreService
-            self.process = nil
-            self.port = nil
-            self.instance = nil
-            self.coreService = nil
-            return (process, coreService)
-        }
+        let session = takeAll()
 
-        coreService?.shutdown()
-        if let process, process.isRunning {
+        session.coreService?.shutdown()
+        if let process = session.process, process.isRunning {
             process.terminate()
+        }
+    }
+
+    /// Removes and returns everything the runtime is holding.
+    func takeAll() -> (
+        process: Process?,
+        coreService: ArduinoCoreService?,
+        instance: ArduinoCoreInstance?
+    ) {
+        lock.withLock {
+            let session = (process, coreService, instance)
+            process = nil
+            port = nil
+            instance = nil
+            coreService = nil
+            return session
         }
     }
 

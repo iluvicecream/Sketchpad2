@@ -18,5 +18,10 @@ struct Sketchpad2App: App {
         } makeDocument: { configuration, context in
             Sketchpad2Document()
         }
+
+        Settings {
+            SettingsView()
+                .environment(mainController)
+        }
     }
 }

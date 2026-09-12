@@ -48,10 +48,61 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         return response.instance
     }
 
+    /// Destroys the given Arduino Core instance, waiting up to `timeout` for the daemon's reply.
+    ///
+    /// This blocks the calling thread so it can run from `applicationWillTerminate`, where the app
+    /// has no way to await work before exiting. The RPC itself runs off the main actor.
+    @discardableResult
+    func destroyInstance(_ instance: ArduinoCoreInstance, timeout: Duration = .seconds(2)) -> Bool {
+        let finished = DispatchSemaphore(value: 0)
+        let result = DestroyResult()
+
+        Task.detached(priority: .userInitiated) { [self] in
+            var options = GRPCCore.CallOptions.defaults
+            options.timeout = timeout
+
+            var request = Cc_Arduino_Cli_Commands_V1_DestroyRequest()
+            request.instance = instance
+
+            do {
+                let _: Cc_Arduino_Cli_Commands_V1_DestroyResponse = try await core.destroy(
+                    request,
+                    options: options
+                )
+                logger.log("Destroyed Arduino Core instance \(instance.id)")
+                result.set(true)
+            } catch {
+                logger.error("Couldn't destroy the Arduino Core instance: \(error.localizedDescription, privacy: .public)")
+            }
+            finished.signal()
+        }
+
+        let seconds = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) * 1e-18
+        guard finished.wait(timeout: .now() + seconds) == .success else {
+            logger.error("Timed out waiting for the arduino-cli daemon to destroy the instance")
+            return false
+        }
+        return result.value
+    }
+
     /// Stops accepting new RPCs and tears the connection down.
     func shutdown() {
         logger.log("Closing the arduino-cli connection on port \(self.port)")
         client.beginGracefulShutdown()
         connectionTask.cancel()
+    }
+}
+
+/// A lock-protected flag shared with the detached `Destroy` task.
+private nonisolated final class DestroyResult: @unchecked Sendable {
+    private let lock = NSLock()
+    private var succeeded = false
+
+    func set(_ newValue: Bool) {
+        lock.withLock { succeeded = newValue }
+    }
+
+    var value: Bool {
+        lock.withLock { succeeded }
     }
 }
