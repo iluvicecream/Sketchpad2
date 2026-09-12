@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		43EAC69C3055C44C00A9C901 /* GRPCCodeGen in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC69B3055C44C00A9C901 /* GRPCCodeGen */; };
+		43EAC69E3055C44C00A9C901 /* GRPCCore in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC69D3055C44C00A9C901 /* GRPCCore */; };
+		43EAC6A03055C44C00A9C901 /* GRPCInProcessTransport in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC69F3055C44C00A9C901 /* GRPCInProcessTransport */; };
+		43EAC6A33055C46900A9C901 /* GRPCNIOTransportHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC6A23055C46900A9C901 /* GRPCNIOTransportHTTP2 */; };
+		43EAC6A53055C46900A9C901 /* GRPCNIOTransportHTTP2Posix in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC6A43055C46900A9C901 /* GRPCNIOTransportHTTP2Posix */; };
+		43EAC6A73055C46900A9C901 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC6A63055C46900A9C901 /* GRPCNIOTransportHTTP2TransportServices */; };
+		43EAC6AA3055C47900A9C901 /* GRPCProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC6A93055C47900A9C901 /* GRPCProtobuf */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		43EAC63B3055913300A9C901 /* Sketchpad2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sketchpad2.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		43EAC6473055913400A9C901 /* Exceptions for "Sketchpad2" folder in "Sketchpad2" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 43EAC63A3055913300A9C901 /* Sketchpad2 */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		43EAC63D3055913300A9C901 /* Sketchpad2 */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				43EAC6473055913400A9C901 /* Exceptions for "Sketchpad2" folder in "Sketchpad2" target */,
+			);
+			path = Sketchpad2;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		43EAC6383055913300A9C901 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				43EAC6AA3055C47900A9C901 /* GRPCProtobuf in Frameworks */,
+				43EAC6A53055C46900A9C901 /* GRPCNIOTransportHTTP2Posix in Frameworks */,
+				43EAC69C3055C44C00A9C901 /* GRPCCodeGen in Frameworks */,
+				43EAC69E3055C44C00A9C901 /* GRPCCore in Frameworks */,
+				43EAC6A33055C46900A9C901 /* GRPCNIOTransportHTTP2 in Frameworks */,
+				43EAC6A73055C46900A9C901 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */,
+				43EAC6A03055C44C00A9C901 /* GRPCInProcessTransport in Frameworks */,
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		43EAC6323055913300A9C901 = {
+			isa = PBXGroup;
+			children = (
+				43EAC63D3055913300A9C901 /* Sketchpad2 */,
+				43EAC63C3055913300A9C901 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		43EAC63C3055913300A9C901 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				43EAC63B3055913300A9C901 /* Sketchpad2.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		43EAC63A3055913300A9C901 /* Sketchpad2 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 43EAC6483055913400A9C901 /* Build configuration list for PBXNativeTarget "Sketchpad2" */;
+			buildPhases = (
+				43EAC6373055913300A9C901 /* Sources */,
+				43EAC6383055913300A9C901 /* Frameworks */,
+				43EAC6393055913300A9C901 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				43EAC63D3055913300A9C901 /* Sketchpad2 */,
+			);
+			name = Sketchpad2;
+			packageProductDependencies = (
+				43EAC69B3055C44C00A9C901 /* GRPCCodeGen */,
+				43EAC69D3055C44C00A9C901 /* GRPCCore */,
+				43EAC69F3055C44C00A9C901 /* GRPCInProcessTransport */,
+				43EAC6A23055C46900A9C901 /* GRPCNIOTransportHTTP2 */,
+				43EAC6A43055C46900A9C901 /* GRPCNIOTransportHTTP2Posix */,
+				43EAC6A63055C46900A9C901 /* GRPCNIOTransportHTTP2TransportServices */,
+				43EAC6A93055C47900A9C901 /* GRPCProtobuf */,
+			);
+			productName = Sketchpad2;
+			productReference = 43EAC63B3055913300A9C901 /* Sketchpad2.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		43EAC6333055913300A9C901 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					43EAC63A3055913300A9C901 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 43EAC6363055913300A9C901 /* Build configuration list for PBXProject "Sketchpad2" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 43EAC6323055913300A9C901;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				43EAC69A3055C44C00A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-2" */,
+				43EAC6A13055C46900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
+				43EAC6A83055C47900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 43EAC63C3055913300A9C901 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				43EAC63A3055913300A9C901 /* Sketchpad2 */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		43EAC6393055913300A9C901 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		43EAC6373055913300A9C901 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		43EAC6493055913400A9C901 /* Debug configuration for PBXNativeTarget "Sketchpad2" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H7GY49BN38;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sketchpad2/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.perr.Sketchpad2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		43EAC64A3055913400A9C901 /* Release configuration for PBXNativeTarget "Sketchpad2" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H7GY49BN38;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sketchpad2/Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.perr.Sketchpad2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		43EAC64B3055913400A9C901 /* Debug configuration for PBXProject "Sketchpad2" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = H7GY49BN38;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		43EAC64C3055913400A9C901 /* Release configuration for PBXProject "Sketchpad2" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = H7GY49BN38;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		43EAC6363055913300A9C901 /* Build configuration list for PBXProject "Sketchpad2" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				43EAC64B3055913400A9C901 /* Debug configuration for PBXProject "Sketchpad2" */,
+				43EAC64C3055913400A9C901 /* Release configuration for PBXProject "Sketchpad2" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		43EAC6483055913400A9C901 /* Build configuration list for PBXNativeTarget "Sketchpad2" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				43EAC6493055913400A9C901 /* Debug configuration for PBXNativeTarget "Sketchpad2" */,
+				43EAC64A3055913400A9C901 /* Release configuration for PBXNativeTarget "Sketchpad2" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		43EAC69A3055C44C00A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-2.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.3;
+			};
+		};
+		43EAC6A13055C46900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-nio-transport.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.2;
+			};
+		};
+		43EAC6A83055C47900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-protobuf.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		43EAC69B3055C44C00A9C901 /* GRPCCodeGen */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC69A3055C44C00A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-2" */;
+			productName = GRPCCodeGen;
+		};
+		43EAC69D3055C44C00A9C901 /* GRPCCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC69A3055C44C00A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-2" */;
+			productName = GRPCCore;
+		};
+		43EAC69F3055C44C00A9C901 /* GRPCInProcessTransport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC69A3055C44C00A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-2" */;
+			productName = GRPCInProcessTransport;
+		};
+		43EAC6A23055C46900A9C901 /* GRPCNIOTransportHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC6A13055C46900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2;
+		};
+		43EAC6A43055C46900A9C901 /* GRPCNIOTransportHTTP2Posix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC6A13055C46900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2Posix;
+		};
+		43EAC6A63055C46900A9C901 /* GRPCNIOTransportHTTP2TransportServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC6A13055C46900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2TransportServices;
+		};
+		43EAC6A93055C47900A9C901 /* GRPCProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC6A83055C47900A9C901 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */;
+			productName = GRPCProtobuf;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 43EAC6333055913300A9C901 /* Project object */;
+	validationLevel = 1;
+}

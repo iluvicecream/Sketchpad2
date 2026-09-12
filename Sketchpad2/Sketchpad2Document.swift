@@ -1,14 +1,6 @@
 //
-//  test2Document.swift
-//  Sketchpad
-//
-//  Created by perr on 9/12/2569 BE.
-//
-
-
-//
-//  test2Document.swift
-//  test2
+//  Sketchpad2Document.swift
+//  Sketchpad2
 //
 //  Created by perr on 9/12/2569 BE.
 //
@@ -17,13 +9,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 @Observable
-final class test2Document: Document {
+final class Sketchpad2Document: Document {
 
-    static let readableContentTypes: [UTType] = [.exampleText]
+    static let readableContentTypes: [UTType] = [.inoSketch]
 
     var text: String
 
-    init(text: String = "Hello, world!") {
+    init(text: String = "void setup() {\n\n}\n\nvoid loop() {\n\n}") {
         self.text = text
     }
 
@@ -58,7 +50,7 @@ final class test2Document: Document {
 }
 
 extension UTType {
-    static var exampleText: UTType {
-        UTType(importedAs: "com.example.plain-text")
+    static var inoSketch: UTType {
+        UTType(importedAs: "com.perr.ino")
     }
 }
