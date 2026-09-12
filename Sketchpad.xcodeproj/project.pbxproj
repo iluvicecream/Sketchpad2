@@ -13,6 +13,7 @@
 		4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */; };
 		4382D163304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */; };
 		4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = 4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */; };
+		43EAC56530556E2200A9C901 /* STTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 43EAC56430556E2200A9C901 /* STTextView */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +50,7 @@
 				4382D15B304D63BE00880B95 /* SwiftProtobufPluginLibrary in Frameworks */,
 				4382D161304D65CF00880B95 /* GRPCNIOTransportHTTP2 in Frameworks */,
 				4382D165304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices in Frameworks */,
+				43EAC56530556E2200A9C901 /* STTextView in Frameworks */,
 				4382D159304D63BE00880B95 /* SwiftProtobuf in Frameworks */,
 			);
 		};
@@ -95,6 +97,7 @@
 				4382D160304D65CF00880B95 /* GRPCNIOTransportHTTP2 */,
 				4382D162304D65CF00880B95 /* GRPCNIOTransportHTTP2Posix */,
 				4382D164304D65CF00880B95 /* GRPCNIOTransportHTTP2TransportServices */,
+				43EAC56430556E2200A9C901 /* STTextView */,
 			);
 			productName = Bench;
 			productReference = 438B4050304C39F400362ECD /* Sketchpad.app */;
@@ -128,6 +131,7 @@
 				4382D157304D63BE00880B95 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
 				4382D15C304D657300880B95 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
 				4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
+				43EAC56330556E2200A9C901 /* XCRemoteSwiftPackageReference "STTextView" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 438B4051304C39F400362ECD /* Products */;
@@ -392,6 +396,14 @@
 				minimumVersion = 2.9.2;
 			};
 		};
+		43EAC56330556E2200A9C901 /* XCRemoteSwiftPackageReference "STTextView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/krzyzanowskim/STTextView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -424,6 +436,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 4382D15F304D65CF00880B95 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
 			productName = GRPCNIOTransportHTTP2TransportServices;
+		};
+		43EAC56430556E2200A9C901 /* STTextView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43EAC56330556E2200A9C901 /* XCRemoteSwiftPackageReference "STTextView" */;
+			productName = STTextView;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

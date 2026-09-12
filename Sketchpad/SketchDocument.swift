@@ -15,12 +15,12 @@ extension UTType {
 }
 
 struct SketchDocument: FileDocument {
-    var mainCode: String
+    var fileContent: String
     
     static var readableContentTypes: [UTType] { [.inoSketch, .plainText] }
 
-    init(mainCode: String = "void setup() {\n\n}\n\nvoid loop() {\n\n}") {
-        self.mainCode = mainCode
+    init(fileContent: String = "void setup() {\n\n}\n\nvoid loop() {\n\n}") {
+        self.fileContent = fileContent
     }
 
     init(configuration: ReadConfiguration) throws {
@@ -29,11 +29,11 @@ struct SketchDocument: FileDocument {
         else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        self.mainCode = string
+        self.fileContent = string
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = Data(mainCode.utf8)
+        let data = Data(fileContent.utf8)
         return .init(regularFileWithContents: data)
     }
 }

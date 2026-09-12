@@ -1,6 +1,15 @@
 {
-  "originHash" : "21721ee9d1eafe1b399780513f8a322902043100a2ca37aa14a9e155c76eb8f6",
+  "originHash" : "f8e8aff20120563db0524549f9fcb24501d8b8cb69224d42b52b89ec01875cb0",
   "pins" : [
+    {
+      "identity" : "coretextswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/CoreTextSwift",
+      "state" : {
+        "revision" : "833177201d6421e6322296f39fce6ff6ae52618a",
+        "version" : "0.2.0"
+      }
+    },
     {
       "identity" : "grpc-swift-2",
       "kind" : "remoteSourceControl",
@@ -25,6 +34,24 @@
       "location" : "https://github.com/grpc/grpc-swift-protobuf.git",
       "state" : {
         "revision" : "176c5a434fd76f6f479848d1a8f7d44967534168",
+        "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "sttextkitplus",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/STTextKitPlus",
+      "state" : {
+        "revision" : "8117f3b6a20633e4ce92df102dd260b808ffc9bd",
+        "version" : "0.3.1"
+      }
+    },
+    {
+      "identity" : "sttextview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/STTextView",
+      "state" : {
+        "revision" : "bbdcfd9d413ad3055dafd23a223be9bd39742f89",
         "version" : "2.4.1"
       }
     },
