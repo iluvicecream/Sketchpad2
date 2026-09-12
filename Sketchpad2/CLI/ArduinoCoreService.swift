@@ -6,12 +6,14 @@
 import Foundation
 import GRPCCore
 import GRPCNIOTransportHTTP2
+import SwiftProtobuf
 import os
 
 /// A single long-lived gRPC connection to the arduino-cli daemon, shared by every RPC.
 nonisolated final class ArduinoCoreService: @unchecked Sendable {
 
     private nonisolated static let rpcTimeout: Duration = .seconds(10)
+    private nonisolated static let indexUpdateTimeout: Duration = .seconds(120)
 
     let port: Int
 
@@ -58,6 +60,108 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
             options: options
         )
         return response.version
+    }
+
+    /// Fetches the daemon configuration and writes a dump of it to the log.
+    func configuration() async throws -> ArduinoConfiguration {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        let response: Cc_Arduino_Cli_Commands_V1_ConfigurationGetResponse = try await core.configurationGet(
+            Cc_Arduino_Cli_Commands_V1_ConfigurationGetRequest(),
+            options: options
+        )
+
+        let configuration = response.configuration
+        logConfiguration(configuration)
+        return configuration
+    }
+
+    /// Sets a single value in the daemon's configuration.
+    func settingsSetValue(key: String, encodedValue: String, valueFormat: String = "json") async throws {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_SettingsSetValueRequest()
+        request.key = key
+        request.encodedValue = encodedValue
+        request.valueFormat = valueFormat
+
+        let _: Cc_Arduino_Cli_Commands_V1_SettingsSetValueResponse = try await core.settingsSetValue(
+            request,
+            options: options
+        )
+    }
+
+    /// Persists the settings currently held in memory to the daemon's configuration file and
+    /// returns the encoded settings.
+    @discardableResult
+    func configurationSave(settingsFormat: String = "yaml") async throws -> String {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_ConfigurationSaveRequest()
+        request.settingsFormat = settingsFormat
+
+        let response: Cc_Arduino_Cli_Commands_V1_ConfigurationSaveResponse = try await core.configurationSave(
+            request,
+            options: options
+        )
+        return response.encodedSettings
+    }
+
+    /// Downloads the package indexes for the given instance, reporting high-level progress
+    /// through `onProgress` and returning the per-index result.
+    @discardableResult
+    func updateIndex(
+        _ instance: ArduinoCoreInstance,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws -> [Cc_Arduino_Cli_Commands_V1_IndexUpdateReport] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.indexUpdateTimeout
+
+        var indexRequest = Cc_Arduino_Cli_Commands_V1_UpdateIndexRequest()
+        indexRequest.instance = instance
+
+        let reports: [Cc_Arduino_Cli_Commands_V1_IndexUpdateReport] = try await core.updateIndex(
+            indexRequest,
+            options: options
+        ) { response in
+            var updatedIndexes: [Cc_Arduino_Cli_Commands_V1_IndexUpdateReport] = []
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.downloadProgress(let progress)):
+                    switch progress.message {
+                    case .some(.start(let start)):
+                        onProgress(start.label.isEmpty ? "Downloading \(start.url)" : start.label)
+                    case .some(.end(let end)):
+                        if !end.message.isEmpty {
+                            onProgress(end.message)
+                        }
+                    case .some(.update), .none:
+                        break
+                    }
+                case .some(.result(let result)):
+                    updatedIndexes = result.updatedIndexes
+                case .none:
+                    break
+                }
+            }
+            return updatedIndexes
+        }
+        return reports
+    }
+
+    /// Logs the configuration one line at a time so long dumps aren't truncated.
+    private func logConfiguration(_ configuration: ArduinoConfiguration) {
+        let lines = configuration.textFormatString()
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(String.init)
+
+        logger.log("arduino-cli configuration (\(lines.count) lines)")
+        for line in lines {
+            logger.log("\(line, privacy: .public)")
+        }
     }
 
     /// Destroys the given Arduino Core instance, waiting up to `timeout` for the daemon's reply.

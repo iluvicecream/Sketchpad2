@@ -24,6 +24,13 @@ final class MainController {
         case failed(ArduinoCLIError)
     }
 
+    /// Where the app is in the board index refresh flow.
+    enum BoardIndexUpdate: Equatable {
+        case idle
+        case updating(message: String?)
+        case failed(String)
+    }
+
     private(set) var phase: Phase = .idle
     private(set) var daemonPort: Int?
     /// The Arduino Core instance created on the daemon via the `Create` RPC.
@@ -31,6 +38,17 @@ final class MainController {
 
     /// The arduino-cli version reported by the daemon at startup.
     private(set) var arduinoCLIVersion: String?
+
+    /// The daemon configuration, fetched when the Settings window opens.
+    private(set) var configuration: ArduinoConfiguration?
+
+    /// The board index refresh triggered after board manager URLs are saved.
+    private(set) var boardIndexUpdate: BoardIndexUpdate = .idle
+
+    /// The additional package index URLs currently configured in the daemon.
+    var boardManagerURLs: [String] {
+        configuration?.boardManager.additionalUrls ?? []
+    }
 
     /// The shared gRPC connection to the daemon, available once setup finishes.
     var coreService: ArduinoCoreService? {
@@ -86,7 +104,80 @@ final class MainController {
         daemonPort = nil
         instance = nil
         arduinoCLIVersion = nil
+        configuration = nil
+        boardIndexUpdate = .idle
         phase = .idle
+    }
+
+    /// Fetches the daemon configuration so it can be inspected. Safe to call whenever Settings opens.
+    func loadConfiguration() async {
+        guard let coreService else { return }
+
+        do {
+            configuration = try await coreService.configuration()
+        } catch {
+            // `ArduinoCoreService` logs failures alongside the rest of the daemon traffic.
+        }
+    }
+
+    /// Replaces the board manager additional URLs, persists the configuration, and refreshes the
+    /// cached configuration so the UI reflects the stored values.
+    func saveBoardManagerURLs(_ urls: [String]) async throws {
+        guard let coreService else { throw ArduinoCLIError.daemonNotRunning }
+
+        let encodedValue = try Self.encodeBoardManagerURLs(urls)
+
+        do {
+            try await coreService.settingsSetValue(
+                key: ArduinoCLISettingsKey.boardManagerAdditionalURLs,
+                encodedValue: encodedValue,
+                valueFormat: "json"
+            )
+        } catch {
+            throw ArduinoCLIError.settingsUpdateFailed(reason: error.localizedDescription)
+        }
+
+        do {
+            try await coreService.configurationSave(settingsFormat: "yaml")
+        } catch {
+            throw ArduinoCLIError.configurationSaveFailed(reason: error.localizedDescription)
+        }
+
+        await loadConfiguration()
+    }
+
+    /// Downloads the package indexes so newly added board manager URLs take effect.
+    func refreshBoardIndex() async throws {
+        guard let coreService, let instance else { throw ArduinoCLIError.daemonNotRunning }
+
+        boardIndexUpdate = .updating(message: nil)
+        do {
+            try await coreService.updateIndex(instance) { [weak self] message in
+                Task { @MainActor in
+                    guard let self, case .updating = self.boardIndexUpdate else { return }
+                    self.boardIndexUpdate = .updating(message: message)
+                }
+            }
+            boardIndexUpdate = .idle
+        } catch {
+            let failure = error as? ArduinoCLIError ?? .indexUpdateFailed(reason: error.localizedDescription)
+            boardIndexUpdate = .failed(failure.errorDescription ?? "Couldn't update the board index.")
+            throw failure
+        }
+    }
+
+    /// Trims whitespace, drops empty entries, and removes duplicates while preserving order.
+    static func normalizeBoardManagerURLs(_ urls: [String]) -> [String] {
+        var seen = Set<String>()
+        return urls
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .filter { seen.insert($0).inserted }
+    }
+
+    private static func encodeBoardManagerURLs(_ urls: [String]) throws -> String {
+        let data = try JSONEncoder().encode(normalizeBoardManagerURLs(urls))
+        return String(decoding: data, as: UTF8.self)
     }
 
     private func runSetup() {
