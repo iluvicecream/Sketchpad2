@@ -28,6 +28,7 @@ struct Sketchpad2App: App {
 
         Window("Board Manager", id: AppWindowID.boardManager) {
             BoardManagerView()
+                .environment(mainController)
         }
         .windowStyle(.hiddenTitleBar)
 

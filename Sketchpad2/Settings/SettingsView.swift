@@ -5,11 +5,32 @@
 
 import SwiftUI
 
-/// Placeholder Settings window. Real panes land here as the app grows.
+/// Settings window. Waits for the arduino-cli configuration before showing its panes.
 struct SettingsView: View {
     @Environment(MainController.self) private var mainController
 
     var body: some View {
+        Group {
+            switch mainController.configurationLoad {
+            case .loaded:
+                tabs
+            case .failed(let message):
+                failure(message)
+            case .idle, .loading:
+                if case .failed(let error) = mainController.phase {
+                    failure(error.errorDescription ?? "arduino-cli didn't start.")
+                } else {
+                    loading
+                }
+            }
+        }
+        .frame(width: 440)
+        .task(id: mainController.isReady) {
+            await mainController.loadConfiguration()
+        }
+    }
+
+    private var tabs: some View {
         TabView {
             GeneralSettingsView()
                 .tabItem {
@@ -21,10 +42,38 @@ struct SettingsView: View {
                     Label("Arduino CLI", systemImage: "cpu")
                 }
         }
-        .frame(width: 440)
-        .task(id: mainController.isReady) {
-            await mainController.loadConfiguration()
+    }
+
+    private var loading: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+            Text(mainController.isReady ? "Loading configuration…" : "Waiting for arduino-cli…")
+                .font(.callout)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 320)
+    }
+
+    private func failure(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.largeTitle)
+                .foregroundStyle(.orange)
+            Text("Couldn't load the arduino-cli configuration.")
+                .font(.callout)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task { await mainController.loadConfiguration() }
+            }
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity)
+        .frame(height: 320)
     }
 }
 
@@ -67,7 +116,7 @@ private struct GeneralSettingsView: View {
                         TextField("https://example.com/package_index.json", text: $row.value)
                             .textFieldStyle(.roundedBorder)
                             .labelsHidden()
-                            .disabled(isSaving || !mainController.isReady)
+                            .disabled(isSaving)
 
                         Button {
                             rows.removeAll { $0.id == row.id }
@@ -76,7 +125,7 @@ private struct GeneralSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
-                        .disabled(isSaving || !mainController.isReady)
+                        .disabled(isSaving)
                         .accessibilityLabel("Remove board manager URL")
                     }
                 }
@@ -86,13 +135,7 @@ private struct GeneralSettingsView: View {
                 } label: {
                     Label("Add URL", systemImage: "plus")
                 }
-                .disabled(isSaving || !mainController.isReady)
-
-                if !mainController.isReady {
-                    Text("Start arduino-cli before editing board manager URLs.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
+                .disabled(isSaving)
             }
 
             Section {
@@ -225,6 +268,8 @@ private struct ArduinoCLISettingsView: View {
             return "Extracting"
         case .startingDaemon:
             return "Starting daemon"
+        case .initializing:
+            return "Initializing"
         case .ready:
             return "Running"
         case .failed(let error):

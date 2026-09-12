@@ -6,6 +6,7 @@
 import AppKit
 import Foundation
 import Observation
+import os
 
 /// App-wide root controller. Owns the observable state the UI binds to and delegates the work
 /// behind it to `ArduinoCLIService`.
@@ -20,6 +21,7 @@ final class MainController {
         case downloading
         case extracting
         case startingDaemon
+        case initializing(message: String?)
         case ready(port: Int)
         case failed(ArduinoCLIError)
     }
@@ -29,6 +31,29 @@ final class MainController {
         case idle
         case updating(message: String?)
         case failed(String)
+    }
+
+    /// Where the app is in the configuration fetch.
+    enum ConfigurationLoad: Equatable {
+        case idle
+        case loading
+        case loaded
+        case failed(String)
+    }
+
+    /// Where the app is in the installable-board catalog flow.
+    enum BoardCatalog: Equatable {
+        case idle
+        case loading
+        case loaded
+        case failed(String)
+    }
+
+    /// The platform installation in flight, if any.
+    enum PlatformInstall: Equatable {
+        case idle
+        case installing(platformID: String, message: String?)
+        case failed(platformID: String, message: String)
     }
 
     private(set) var phase: Phase = .idle
@@ -42,8 +67,20 @@ final class MainController {
     /// The daemon configuration, fetched when the Settings window opens.
     private(set) var configuration: ArduinoConfiguration?
 
+    /// The state of the configuration fetch, used to gate the Settings window.
+    private(set) var configurationLoad: ConfigurationLoad = .idle
+
     /// The board index refresh triggered after board manager URLs are saved.
     private(set) var boardIndexUpdate: BoardIndexUpdate = .idle
+
+    /// The state of the installable-board catalog, used to gate the Board Manager window.
+    private(set) var boardCatalog: BoardCatalog = .idle
+
+    /// The platforms the indexes offer, sorted by name.
+    private(set) var installablePlatforms: [InstallablePlatform] = []
+
+    /// The platform installation currently in flight, if any.
+    private(set) var platformInstall: PlatformInstall = .idle
 
     /// The additional package index URLs currently configured in the daemon.
     var boardManagerURLs: [String] {
@@ -59,6 +96,8 @@ final class MainController {
     private var setupTask: Task<Void, Never>?
     @ObservationIgnored
     private nonisolated(unsafe) var terminationObserver: (any NSObjectProtocol)?
+    
+    private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "MainController")
 
     init(service: any ArduinoCLIServicing = ArduinoCLIService()) {
         self.service = service
@@ -105,18 +144,84 @@ final class MainController {
         instance = nil
         arduinoCLIVersion = nil
         configuration = nil
+        configurationLoad = .idle
         boardIndexUpdate = .idle
+        boardCatalog = .idle
+        installablePlatforms = []
+        platformInstall = .idle
         phase = .idle
     }
 
     /// Fetches the daemon configuration so it can be inspected. Safe to call whenever Settings opens.
     func loadConfiguration() async {
-        guard let coreService else { return }
+        guard let coreService else {
+            configurationLoad = .idle
+            return
+        }
+
+        if configuration == nil {
+            configurationLoad = .loading
+        }
 
         do {
             configuration = try await coreService.configuration()
+            configurationLoad = .loaded
         } catch {
-            // `ArduinoCoreService` logs failures alongside the rest of the daemon traffic.
+            // Keep any configuration already on screen; only surface a failure when there's none.
+            if configuration == nil {
+                configurationLoad = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Loads the platforms the indexes offer, so the Board Manager can browse and install them.
+    /// Safe to call whenever the Board Manager window opens.
+    func loadBoards() async {
+        guard let coreService, let instance else { return }
+
+        boardCatalog = .loading
+        if case .failed = platformInstall {
+            platformInstall = .idle
+        }
+
+        do {
+            let summaries = try await coreService.platformSearch(instance: instance)
+            installablePlatforms = summaries
+                .map(InstallablePlatform.init)
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            boardCatalog = .loaded
+        } catch {
+            let failure = error as? ArduinoCLIError ?? .platformSearchFailed(reason: error.localizedDescription)
+            logger.error("Couldn't load the board catalog: \(failure.errorDescription ?? "unknown error", privacy: .public)")
+            boardCatalog = .failed(failure.errorDescription ?? "Couldn't load the platform indexes.")
+        }
+    }
+
+    /// Installs the newest version of the given platform and refreshes the catalog when it finishes.
+    func installPlatform(_ platform: InstallablePlatform) async {
+        guard let coreService, let instance else { return }
+        guard !platform.latestVersion.isEmpty else { return }
+
+        platformInstall = .installing(platformID: platform.id, message: nil)
+        do {
+            try await coreService.platformInstall(
+                instance: instance,
+                platformID: platform.id,
+                version: platform.latestVersion
+            ) { [weak self] message in
+                Task { @MainActor in
+                    guard let self, case .installing(let id, _) = self.platformInstall, id == platform.id else { return }
+                    self.platformInstall = .installing(platformID: id, message: message)
+                }
+            }
+            platformInstall = .idle
+            await loadBoards()
+        } catch {
+            let failure = error as? ArduinoCLIError ?? .platformInstallFailed(reason: error.localizedDescription)
+            platformInstall = .failed(
+                platformID: platform.id,
+                message: failure.errorDescription ?? "Couldn't install the platform."
+            )
         }
     }
 
@@ -138,12 +243,25 @@ final class MainController {
         }
 
         do {
-            try await coreService.configurationSave(settingsFormat: "yaml")
+            let encodedSettings = try await coreService.configurationSave(settingsFormat: "yaml")
+            try Self.persistConfiguration(encodedSettings, to: service.configurationFileURL)
         } catch {
             throw ArduinoCLIError.configurationSaveFailed(reason: error.localizedDescription)
         }
 
         await loadConfiguration()
+    }
+
+    /// Writes the encoded settings to the daemon's configuration file so they survive a restart.
+    ///
+    /// arduino-cli's gRPC API only mutates settings in memory: `ConfigurationSave` returns them
+    /// encoded and never touches the file, so the app has to persist them itself.
+    private static func persistConfiguration(_ encodedSettings: String, to url: URL) throws {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try encodedSettings.write(to: url, atomically: true, encoding: .utf8)
     }
 
     /// Downloads the package indexes so newly added board manager URLs take effect.
@@ -211,6 +329,8 @@ final class MainController {
             phase = .extracting
         case .startingDaemon:
             phase = .startingDaemon
+        case .initializing(let message):
+            phase = .initializing(message: message)
         case .ready(let session):
             daemonPort = session.port
             instance = session.instance

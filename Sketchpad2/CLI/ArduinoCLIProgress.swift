@@ -31,6 +31,7 @@ enum ArduinoCLIProgress: Sendable, Equatable {
     case downloading
     case extracting
     case startingDaemon
+    case initializing(message: String?)
     case ready(ArduinoCLISession)
 }
 
@@ -42,12 +43,15 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
     case daemonStartFailed(reason: String)
     case connectionFailed(reason: String)
     case instanceCreationFailed(reason: String)
+    case instanceInitializationFailed(reason: String)
     case versionRequestFailed(reason: String)
     case processLaunchFailed(String)
     case daemonNotRunning
     case settingsUpdateFailed(reason: String)
     case configurationSaveFailed(reason: String)
     case indexUpdateFailed(reason: String)
+    case platformSearchFailed(reason: String)
+    case platformInstallFailed(reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -63,6 +67,8 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
             "Couldn't connect to the arduino-cli daemon. \(reason)"
         case .instanceCreationFailed(let reason):
             "Couldn't create an Arduino Core instance. \(reason)"
+        case .instanceInitializationFailed(let reason):
+            "Couldn't initialize the Arduino Core instance. \(reason)"
         case .versionRequestFailed(let reason):
             "Couldn't read the arduino-cli version. \(reason)"
         case .processLaunchFailed(let output):
@@ -75,6 +81,10 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
             "Couldn't save the arduino-cli configuration. \(reason)"
         case .indexUpdateFailed(let reason):
             "Couldn't update the board index. \(reason)"
+        case .platformSearchFailed(let reason):
+            "Couldn't search the platform indexes. \(reason)"
+        case .platformInstallFailed(let reason):
+            "Couldn't install the platform. \(reason)"
         }
     }
 }

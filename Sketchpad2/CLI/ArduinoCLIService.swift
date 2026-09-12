@@ -11,6 +11,8 @@ import os
 protocol ArduinoCLIServicing: Sendable {
     func ensureReady() -> AsyncThrowingStream<ArduinoCLIProgress, Error>
     var coreService: ArduinoCoreService? { get }
+    /// The YAML configuration file the daemon reads at startup and the app writes when settings change.
+    nonisolated var configurationFileURL: URL { get }
     func shutdown()
 }
 
@@ -76,6 +78,10 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         runtime.coreServiceInstance()
     }
 
+    nonisolated var configurationFileURL: URL {
+        dataDirectory.appending(path: "arduino-cli.yaml", directoryHint: .notDirectory)
+    }
+
     // MARK: - Pipeline
 
     private func start(
@@ -92,7 +98,7 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         return try await task.value
     }
 
-    private func runPipeline(yield: @Sendable (ArduinoCLIProgress) -> Void) async throws -> ArduinoCLISession {
+    private func runPipeline(yield: @escaping @Sendable (ArduinoCLIProgress) -> Void) async throws -> ArduinoCLISession {
         yield(.checking)
         let binary = try await ensureBinaryInstalled(yield: yield)
 
@@ -120,6 +126,18 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
         } catch {
             runtime.shutdownDaemon()
             throw ArduinoCLIError.instanceCreationFailed(reason: error.localizedDescription)
+        }
+
+        do {
+            yield(.initializing(message: nil))
+            try await core.initializeInstance(instance) { message in
+                yield(.initializing(message: message))
+            }
+            logger.log("Initialized Arduino Core instance \(instance.id)")
+        } catch {
+            runtime.shutdownDaemon()
+            throw error as? ArduinoCLIError
+                ?? ArduinoCLIError.instanceInitializationFailed(reason: error.localizedDescription)
         }
 
         let version: String
@@ -233,6 +251,8 @@ nonisolated final class ArduinoCLIService: ArduinoCLIServicing {
                 arguments: [
                     "--config-dir",
                     dataDirectory.path(percentEncoded: false),
+                    "--config-file",
+                    configurationFileURL.path(percentEncoded: false),
                     "daemon",
                     "--port",
                     String(port),

@@ -14,6 +14,8 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
 
     private nonisolated static let rpcTimeout: Duration = .seconds(10)
     private nonisolated static let indexUpdateTimeout: Duration = .seconds(120)
+    private nonisolated static let instanceInitTimeout: Duration = .seconds(120)
+    private nonisolated static let platformInstallTimeout: Duration = .seconds(900)
 
     let port: Int
 
@@ -48,6 +50,82 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
             options: options
         )
         return response.instance
+    }
+
+    /// Initializes an existing Arduino Core instance by loading platforms and libraries.
+    ///
+    /// The daemon streams its progress while it downloads and loads the platform and library
+    /// indexes; each step is reported through `onProgress`. An error message in the stream is
+    /// surfaced as a thrown `ArduinoCLIError`.
+    func initializeInstance(
+        _ instance: ArduinoCoreInstance,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.instanceInitTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_InitRequest()
+        request.instance = instance
+
+        try await core.`init`(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.initProgress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.error(let status)):
+                    throw ArduinoCLIError.instanceInitializationFailed(
+                        reason: status.message.isEmpty ? "The daemon returned an unspecified error." : status.message
+                    )
+                case .some(.profile), .none:
+                    break
+                }
+            }
+        }
+    }
+
+    /// A short human-readable line for an initialization progress message, or `nil` when the
+    /// message carries nothing worth reporting.
+    private static func progressDescription(
+        of progress: Cc_Arduino_Cli_Commands_V1_InitResponse.Progress
+    ) -> String? {
+        if progress.hasTaskProgress, let line = progressDescription(of: progress.taskProgress) {
+            return line
+        }
+
+        if progress.hasDownloadProgress {
+            return progressDescription(of: progress.downloadProgress)
+        }
+
+        return nil
+    }
+
+    /// A short human-readable line for a download progress message, or `nil` when the message
+    /// carries nothing worth reporting.
+    private static func progressDescription(
+        of progress: Cc_Arduino_Cli_Commands_V1_DownloadProgress
+    ) -> String? {
+        switch progress.message {
+        case .some(.start(let start)):
+            return start.label.isEmpty ? "Downloading \(start.url)" : start.label
+        case .some(.end(let end)):
+            return end.message.isEmpty ? nil : end.message
+        case .some(.update), .none:
+            return nil
+        }
+    }
+
+    /// A short human-readable line for a task progress message, or `nil` when the message carries
+    /// nothing worth reporting.
+    private static func progressDescription(
+        of progress: Cc_Arduino_Cli_Commands_V1_TaskProgress
+    ) -> String? {
+        var line = progress.message.isEmpty ? progress.name : progress.message
+        if progress.percent > 0, progress.percent < 100 {
+            line += " (\(Int(progress.percent))%)"
+        }
+        return line.isEmpty ? nil : line
     }
 
     /// The arduino-cli version the daemon reports.
@@ -93,8 +171,10 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         )
     }
 
-    /// Persists the settings currently held in memory to the daemon's configuration file and
-    /// returns the encoded settings.
+    /// Serializes the settings currently held in memory and returns them encoded.
+    ///
+    /// This does not touch the configuration file; the caller is responsible for persisting the
+    /// returned settings.
     @discardableResult
     func configurationSave(settingsFormat: String = "yaml") async throws -> String {
         var options = GRPCCore.CallOptions.defaults
@@ -161,6 +241,79 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         logger.log("arduino-cli configuration (\(lines.count) lines)")
         for line in lines {
             logger.log("\(line, privacy: .public)")
+        }
+    }
+
+    /// Searches the platform indexes for installable platforms and the boards they provide.
+    ///
+    /// This reads the indexes loaded by `Init`, so it works before anything is installed. The
+    /// boards it reports for a platform that isn't installed are the author-provided names from
+    /// the index; only installed platforms report FQBNs.
+    func platformSearch(
+        instance: ArduinoCoreInstance,
+        searchArgs: String = "",
+        manuallyInstalled: Bool = true
+    ) async throws -> [Cc_Arduino_Cli_Commands_V1_PlatformSummary] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_PlatformSearchRequest()
+        request.instance = instance
+        request.searchArgs = searchArgs
+        request.manuallyInstalled = manuallyInstalled
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_PlatformSearchResponse = try await core.platformSearch(
+                request,
+                options: options
+            )
+            logger.log("arduino-cli platform search returned \(response.searchOutput.count) platforms")
+            return response.searchOutput
+        } catch {
+            logger.error("arduino-cli platform search failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+    }
+
+    /// Downloads and installs a platform and its tool dependencies, reporting progress through
+    /// `onProgress`.
+    func platformInstall(
+        instance: ArduinoCoreInstance,
+        platformID: String,
+        version: String,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws {
+        let parts = platformID.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
+            throw ArduinoCLIError.platformInstallFailed(
+                reason: "\"\(platformID)\" isn't a valid platform ID."
+            )
+        }
+
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.platformInstallTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_PlatformInstallRequest()
+        request.instance = instance
+        request.platformPackage = parts[0]
+        request.architecture = parts[1]
+        request.version = version
+
+        try await core.platformInstall(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.progress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.taskProgress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.result), .none:
+                    break
+                }
+            }
         }
     }
 

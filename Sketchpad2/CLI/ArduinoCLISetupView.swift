@@ -57,6 +57,8 @@ struct ArduinoCLISetupView: View {
             return "Extracting arduino-cli"
         case .startingDaemon:
             return "Starting arduino-cli daemon"
+        case .initializing(let message):
+            return message ?? "Initializing Arduino Core"
         case .ready:
             return "Ready"
         case .failed:
