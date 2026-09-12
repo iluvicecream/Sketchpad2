@@ -13,7 +13,7 @@ struct BenchApp: App {
     @State private var controller = ArduinoController()
     
     var body: some Scene {
-        WindowGroup(){
+        DocumentGroup(newDocument: SketchDocument()){ file in
             if controller.phase == .ready {
                 MainView()
                     .environment(controller)

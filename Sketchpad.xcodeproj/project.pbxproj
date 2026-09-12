@@ -19,9 +19,22 @@
 		438B4050304C39F400362ECD /* Sketchpad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sketchpad.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		43EAC55D30554FD700A9C901 /* Exceptions for "Sketchpad" folder in "Sketchpad" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 438B404F304C39F400362ECD /* Sketchpad */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		438B4052304C39F400362ECD /* Sketchpad */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				43EAC55D30554FD700A9C901 /* Exceptions for "Sketchpad" folder in "Sketchpad" target */,
+			);
 			path = Sketchpad;
 			sourceTree = "<group>";
 		};
@@ -277,6 +290,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sketchpad/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sketchpad;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -311,6 +325,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sketchpad/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Sketchpad;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
