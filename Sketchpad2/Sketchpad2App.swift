@@ -24,14 +24,17 @@ struct Sketchpad2App: App {
         } makeDocument: { configuration, context in
             Sketchpad2Document()
         }
+        .windowToolbarStyle(.unified)
 
         Window("Board Manager", id: AppWindowID.boardManager) {
             BoardManagerView()
         }
+        .windowStyle(.hiddenTitleBar)
 
         Window("Library Manager", id: AppWindowID.libraryManager) {
             LibraryManagerView()
         }
+        .windowStyle(.hiddenTitleBar)
 
         Settings {
             SettingsView()
