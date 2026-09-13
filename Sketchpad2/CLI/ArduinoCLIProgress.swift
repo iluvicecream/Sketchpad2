@@ -51,8 +51,16 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
     case configurationSaveFailed(reason: String)
     case indexUpdateFailed(reason: String)
     case platformSearchFailed(reason: String)
+    case boardListFailed(reason: String)
+    case boardListAllFailed(reason: String)
     case platformInstallFailed(reason: String)
+    case platformUninstallFailed(reason: String)
     case librarySearchFailed(reason: String)
+    case libraryListFailed(reason: String)
+    case libraryInstallFailed(reason: String)
+    case libraryUninstallFailed(reason: String)
+    case sketchVerifyFailed(reason: String)
+    case sketchUploadFailed(reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -84,10 +92,26 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
             "Couldn't update the board index. \(reason)"
         case .platformSearchFailed(let reason):
             "Couldn't search the platform indexes. \(reason)"
+        case .boardListFailed(let reason):
+            "Couldn't list the connected boards. \(reason)"
+        case .boardListAllFailed(let reason):
+            "Couldn't list the installed boards. \(reason)"
         case .platformInstallFailed(let reason):
             "Couldn't install the platform. \(reason)"
+        case .platformUninstallFailed(let reason):
+            "Couldn't uninstall the platform. \(reason)"
         case .librarySearchFailed(let reason):
             "Couldn't search the library indexes. \(reason)"
+        case .libraryListFailed(let reason):
+            "Couldn't list the installed libraries. \(reason)"
+        case .libraryInstallFailed(let reason):
+            "Couldn't install the library. \(reason)"
+        case .libraryUninstallFailed(let reason):
+            "Couldn't uninstall the library. \(reason)"
+        case .sketchVerifyFailed(let reason):
+            "Couldn't verify the sketch. \(reason)"
+        case .sketchUploadFailed(let reason):
+            "Couldn't upload the sketch. \(reason)"
         }
     }
 }

@@ -5,33 +5,6 @@
 
 import Foundation
 
-/// What installing a platform version would do, relative to what's already installed.
-enum PlatformInstallAction: Equatable, Sendable {
-    /// Nothing is installed yet.
-    case install
-    /// The chosen version is newer than the installed one.
-    case update
-    /// The chosen version is older than the installed one.
-    case downgrade
-
-    /// The install button's text for a version, e.g. `Update to 1.8.7`.
-    func label(for version: String) -> String {
-        switch self {
-        case .install: "Install \(version)"
-        case .update: "Update to \(version)"
-        case .downgrade: "Downgrade to \(version)"
-        }
-    }
-
-    /// The symbol shown beside the install button's text, pointing the way the version moves.
-    var symbol: String {
-        switch self {
-        case .install, .downgrade: "arrow.down.circle.fill"
-        case .update: "arrow.up.circle.fill"
-        }
-    }
-}
-
 /// A platform offered by the arduino-cli indexes, shaped for the Board Manager.
 struct InstallablePlatform: Identifiable, Equatable, Sendable {
     /// The platform ID, e.g. `arduino:avr`.
@@ -73,7 +46,7 @@ struct InstallablePlatform: Identifiable, Equatable, Sendable {
     }
 
     /// What installing the given version would do, or `nil` when it's already installed.
-    func installAction(for version: String) -> PlatformInstallAction? {
+    func installAction(for version: String) -> InstallAction? {
         guard isInstalled else { return .install }
         if VersionOrder.isNewer(version, than: installedVersion) { return .update }
         if VersionOrder.isNewer(installedVersion, than: version) { return .downgrade }

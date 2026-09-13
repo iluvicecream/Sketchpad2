@@ -30,13 +30,11 @@ struct Sketchpad2App: App {
             BoardManagerView()
                 .environment(mainController)
         }
-        .windowStyle(.hiddenTitleBar)
 
         Window("Library Manager", id: AppWindowID.libraryManager) {
             LibraryManagerView()
                 .environment(mainController)
         }
-        .windowStyle(.hiddenTitleBar)
 
         Settings {
             SettingsView()

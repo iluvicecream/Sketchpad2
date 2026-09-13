@@ -10,12 +10,13 @@ struct BoardManagerView: View {
     @Environment(\.dismissSearch) private var dismissSearch
     @Environment(MainController.self) private var mainController
     @State private var query = ""
+    @State private var scope: CatalogScope = .all
     @State private var selection: InstallablePlatform.ID?
 
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             sidebar
-                .navigationSplitViewColumnWidth(min: 220,ideal:220)
+                .navigationSplitViewColumnWidth(min: 260, ideal: 260)
                 .searchable(text: $query, placement: .sidebar, prompt: "Search boards")
                 .toolbar(removing: .sidebarToggle)
         } detail: {
@@ -49,13 +50,28 @@ struct BoardManagerView: View {
 
     @ViewBuilder
     private var platformList: some View {
-        if platforms.isEmpty {
-            if mainController.boardCatalog == .loaded {
-                emptyState
-            } else {
-                ProgressView("Loading boards…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if showsCatalog {
+            VStack(spacing: 0) {
+                filterPicker
+                catalog
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        } else {
+            ProgressView("Loading boards…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Whether there's a catalog to show or filter, as opposed to one still loading.
+    private var showsCatalog: Bool {
+        mainController.boardCatalog == .loaded || !mainController.installablePlatforms.isEmpty
+    }
+
+    @ViewBuilder
+    private var catalog: some View {
+        if platforms.isEmpty {
+            emptyState
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(platforms, selection: $selection) { platform in
                 PlatformSidebarRow(platform: platform)
@@ -66,16 +82,35 @@ struct BoardManagerView: View {
         }
     }
 
+    private var filterPicker: some View {
+        CatalogScopePicker(scope: $scope)
+    }
+
     @ViewBuilder
     private var emptyState: some View {
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            ContentUnavailableView(
-                "No platforms found",
-                systemImage: "cpu",
-                description: Text("The platform indexes didn't report anything to install.")
-            )
-        } else {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             ContentUnavailableView.search(text: query)
+        } else {
+            switch scope {
+            case .all:
+                ContentUnavailableView(
+                    "No platforms found",
+                    systemImage: "cpu",
+                    description: Text("The platform indexes didn't report anything to install.")
+                )
+            case .installed:
+                ContentUnavailableView(
+                    "No platforms installed",
+                    systemImage: "cpu",
+                    description: Text("Platforms you install appear here.")
+                )
+            case .updatable:
+                ContentUnavailableView(
+                    "Everything is up to date",
+                    systemImage: "cpu",
+                    description: Text("No installed platform has a newer version on offer.")
+                )
+            }
         }
     }
 
@@ -96,9 +131,16 @@ struct BoardManagerView: View {
     @ViewBuilder
     private var detail: some View {
         if let platform = selectedPlatform {
-            PlatformDetail(platform: platform, install: mainController.platformInstall) { version in
-                Task { await mainController.installPlatform(platform, version: version) }
-            }
+            PlatformDetail(
+                platform: platform,
+                operation: mainController.platformOperation,
+                onInstall: { version in
+                    Task { await mainController.installPlatform(platform, version: version) }
+                },
+                onUninstall: {
+                    Task { await mainController.uninstallPlatform(platform) }
+                }
+            )
             .id(platform.id)
         } else {
             ContentUnavailableView(
@@ -109,12 +151,13 @@ struct BoardManagerView: View {
         }
     }
 
-    /// The platforms matching the current search text, or all of them when the field is empty.
+    /// The platforms in the picked scope matching the current search text.
     private var platforms: [InstallablePlatform] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return mainController.installablePlatforms }
         return mainController.installablePlatforms.filter { platform in
-            platform.name.localizedCaseInsensitiveContains(trimmed)
+            guard scope.includes(platform) else { return false }
+            guard !trimmed.isEmpty else { return true }
+            return platform.name.localizedCaseInsensitiveContains(trimmed)
                 || platform.id.localizedCaseInsensitiveContains(trimmed)
                 || platform.boards.contains { $0.name.localizedCaseInsensitiveContains(trimmed) }
         }
@@ -124,6 +167,17 @@ struct BoardManagerView: View {
     private var selectedPlatform: InstallablePlatform? {
         guard let selection else { return nil }
         return mainController.installablePlatforms.first { $0.id == selection }
+    }
+}
+
+private extension CatalogScope {
+    /// Whether a platform belongs in this slice of the catalog.
+    func includes(_ platform: InstallablePlatform) -> Bool {
+        switch self {
+        case .all: true
+        case .installed: platform.isInstalled
+        case .updatable: platform.isUpdateAvailable
+        }
     }
 }
 
@@ -154,8 +208,9 @@ private struct PlatformSidebarRow: View {
 /// The detail pane for a platform: its identity, version control, boards, and install progress.
 private struct PlatformDetail: View {
     let platform: InstallablePlatform
-    let install: MainController.PlatformInstall
+    let operation: MainController.PlatformOperation
     let onInstall: (String) -> Void
+    let onUninstall: () -> Void
 
     /// The version the user picked from the release menu. Starts on the installed version, so
     /// upgrading and downgrading are both a menu pick away, like the Arduino IDE's version menu.
@@ -163,12 +218,14 @@ private struct PlatformDetail: View {
 
     init(
         platform: InstallablePlatform,
-        install: MainController.PlatformInstall,
-        onInstall: @escaping (String) -> Void
+        operation: MainController.PlatformOperation,
+        onInstall: @escaping (String) -> Void,
+        onUninstall: @escaping () -> Void
     ) {
         self.platform = platform
-        self.install = install
+        self.operation = operation
         self.onInstall = onInstall
+        self.onUninstall = onUninstall
         _pickedVersion = State(initialValue: platform.defaultVersion)
     }
 
@@ -227,24 +284,40 @@ private struct PlatformDetail: View {
 
     // MARK: - Version control
 
-    /// The one control for versions: its left segment opens the release menu and its right
-    /// segment installs what's pending.
+    /// The one control for versions: the release menu, the action for the picked release, and the
+    /// uninstall button once a platform is installed.
     @ViewBuilder
     private var versionControl: some View {
-        if isInstalling {
+        if isBusy {
             ProgressView()
                 .controlSize(.small)
         } else if platform.versions.isEmpty {
             // Nothing on offer to switch to, so the control is status only.
             if platform.isInstalled {
-                installedLabel(includeVersion: true)
+                HStack(spacing: 8) {
+                    installedLabel(includeVersion: true)
+                    uninstallButton
+                }
             }
         } else {
             HStack(spacing: 8) {
                 releaseMenu
                 actionSegment
+                if platform.isInstalled {
+                    uninstallButton
+                }
             }
         }
+    }
+
+    private var uninstallButton: some View {
+        Button(role: .destructive) {
+            onUninstall()
+        } label: {
+            Label("Uninstall", systemImage: "trash")
+        }
+        .buttonStyle(.bordered)
+        .help("Remove the installed platform")
     }
 
     @ViewBuilder
@@ -325,7 +398,7 @@ private struct PlatformDetail: View {
 
     /// What the left segment installs: the picked release, or the newest release when the installed
     /// one is picked and a newer release is on offer, which keeps upgrading a single click.
-    private var pending: (version: String, action: PlatformInstallAction)? {
+    private var pending: (version: String, action: InstallAction)? {
         if let action = platform.installAction(for: version) {
             return (version, action)
         }
@@ -333,40 +406,23 @@ private struct PlatformDetail: View {
         return (platform.latestVersion, .update)
     }
 
-    /// Whether the platform's own installation is the one in flight.
-    private var isInstalling: Bool {
-        if case .installing(let platformID, _) = install, platformID == platform.id { return true }
+    /// Whether this platform's own install or uninstall is in flight.
+    private var isBusy: Bool {
+        if case .installing(let platformID, _) = operation, platformID == platform.id { return true }
+        if case .uninstalling(let platformID, _) = operation, platformID == platform.id { return true }
         return false
     }
 
     private var status: (text: String, isError: Bool)? {
-        switch install {
+        switch operation {
         case .installing(let platformID, let message) where platformID == platform.id:
             return (message ?? "Installing…", false)
+        case .uninstalling(let platformID, let message) where platformID == platform.id:
+            return (message ?? "Uninstalling…", false)
         case .failed(let platformID, let message) where platformID == platform.id:
             return (message, true)
         default:
             return nil
-        }
-    }
-}
-
-/// The colors the install button uses for each kind of version move.
-private extension PlatformInstallAction {
-    /// The button tint: the accent color for a first install, blue to upgrade, yellow to downgrade.
-    var tint: Color? {
-        switch self {
-        case .install: nil
-        case .update: .blue
-        case .downgrade: .yellow
-        }
-    }
-
-    /// Yellow needs dark text to stay readable; the accent and blue fills read fine on white.
-    var labelColor: Color {
-        switch self {
-        case .downgrade: .black
-        case .install, .update: .white
         }
     }
 }

@@ -16,9 +16,15 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
     private nonisolated static let indexUpdateTimeout: Duration = .seconds(120)
     private nonisolated static let instanceInitTimeout: Duration = .seconds(120)
     private nonisolated static let platformInstallTimeout: Duration = .seconds(900)
-    private nonisolated static let librarySearchTimeout: Duration = .seconds(30)
-    /// The whole library index runs to several megabytes, well past the transport's 4 MiB default.
-    private nonisolated static let librarySearchPayloadLimit = 64 * 1024 * 1024
+    private nonisolated static let libraryInstallTimeout: Duration = .seconds(900)
+    /// A cold build compiles the board's whole core, which takes minutes on the larger platforms.
+    private nonisolated static let sketchBuildTimeout: Duration = .seconds(1800)
+    /// Index-shaped replies take longer than a plain query, so they get their own timeout.
+    private nonisolated static let bulkTimeout: Duration = .seconds(30)
+    /// Index-shaped replies run to tens of megabytes, well past the transport's 4 MiB default: the
+    /// whole library index for a library search, and every board's own copy of its platform release
+    /// for a board list.
+    private nonisolated static let bulkPayloadLimit = 64 * 1024 * 1024
 
     let port: Int
 
@@ -129,6 +135,13 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
             line += " (\(Int(progress.percent))%)"
         }
         return line.isEmpty ? nil : line
+    }
+
+    /// A short description of a failed RPC. Foundation's description of a gRPC error is only
+    /// "GRPCCore.RPCError error 1", so prefer the status code and message the error carries.
+    private static func reason(for error: any Error) -> String {
+        guard let rpcError = error as? RPCError else { return error.localizedDescription }
+        return "\(rpcError.code): \(rpcError.message)"
     }
 
     /// The arduino-cli version the daemon reports.
@@ -247,6 +260,162 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         }
     }
 
+    /// Lists the ports the daemon detects and the boards attached to them.
+    ///
+    /// The RPC waits up to `timeoutMilliseconds` for the discovery sources to report, so it takes
+    /// roughly that long when nothing is attached.
+    func boardList(
+        instance: ArduinoCoreInstance,
+        timeoutMilliseconds: Int64 = 2000
+    ) async throws -> [Cc_Arduino_Cli_Commands_V1_DetectedPort] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_BoardListRequest()
+        request.instance = instance
+        request.timeout = timeoutMilliseconds
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_BoardListResponse = try await core.boardList(
+                request,
+                options: options
+            )
+            logger.log("arduino-cli board list returned \(response.ports.count) ports")
+            for warning in response.warnings {
+                logger.warning("arduino-cli board list: \(warning, privacy: .public)")
+            }
+            return response.ports
+        } catch {
+            logger.error("arduino-cli board list failed: \(String(describing: error), privacy: .public)")
+            throw ArduinoCLIError.boardListFailed(reason: Self.reason(for: error))
+        }
+    }
+
+    /// Lists the boards the installed platforms provide, so the editor can offer one for a port
+    /// the daemon couldn't identify.
+    ///
+    /// This reads the boards installed for the Core instance rather than the USB ports, so it
+    /// reports nothing until a platform is installed. `searchArgs` filters the list by board name
+    /// or FQBN; leaving it empty returns every board.
+    ///
+    /// Each board carries its platform's whole release, so the reply is many times the size of the
+    /// board list itself and needs the raised payload limit to decode.
+    func boardListAll(
+        instance: ArduinoCoreInstance,
+        searchArgs: String = "",
+        includeHiddenBoards: Bool = false
+    ) async throws -> [Cc_Arduino_Cli_Commands_V1_BoardListItem] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.bulkTimeout
+        options.maxRequestMessageBytes = Self.bulkPayloadLimit
+
+        var request = Cc_Arduino_Cli_Commands_V1_BoardListAllRequest()
+        request.instance = instance
+        request.searchArgs = searchArgs.isEmpty ? [] : [searchArgs]
+        request.includeHiddenBoards = includeHiddenBoards
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_BoardListAllResponse = try await core.boardListAll(
+                request,
+                options: options
+            )
+            logger.log("arduino-cli board list all returned \(response.boards.count) boards")
+            return response.boards
+        } catch {
+            logger.error("arduino-cli board list all failed: \(String(describing: error), privacy: .public)")
+            throw ArduinoCLIError.boardListAllFailed(reason: Self.reason(for: error))
+        }
+    }
+
+    /// Compiles the sketch in `sketchPath` for the board `fqbn` names, streaming whatever the
+    /// builder prints until the build ends.
+    ///
+    /// The stream finishes with an error when the build fails, after the compiler's diagnostics
+    /// have already been reported as output.
+    func compile(
+        instance: ArduinoCoreInstance,
+        fqbn: String,
+        sketchPath: String
+    ) -> AsyncThrowingStream<SketchBuildEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task.detached(priority: .userInitiated) { [self] in
+                var options = GRPCCore.CallOptions.defaults
+                options.timeout = Self.sketchBuildTimeout
+
+                var request = Cc_Arduino_Cli_Commands_V1_CompileRequest()
+                request.instance = instance
+                request.fqbn = fqbn
+                request.sketchPath = sketchPath
+
+                do {
+                    try await core.compile(request, options: options) { response in
+                        for try await message in response.messages {
+                            switch message.message {
+                            case .some(.outStream(let data)):
+                                continuation.yield(.output(data, isError: false))
+                            case .some(.errStream(let data)):
+                                continuation.yield(.output(data, isError: true))
+                            case .some(.progress(let progress)):
+                                if let line = Self.progressDescription(of: progress) {
+                                    continuation.yield(.progress(line))
+                                }
+                            case .some(.result), .none:
+                                break
+                            }
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    logger.error("arduino-cli compile failed: \(String(describing: error), privacy: .public)")
+                    continuation.finish(throwing: ArduinoCLIError.sketchVerifyFailed(reason: Self.reason(for: error)))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Compiles the sketch in `sketchPath` and uploads it to `port`, streaming whatever the
+    /// toolchain prints until the upload ends.
+    func upload(
+        instance: ArduinoCoreInstance,
+        fqbn: String,
+        sketchPath: String,
+        port: Cc_Arduino_Cli_Commands_V1_Port
+    ) -> AsyncThrowingStream<SketchBuildEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task.detached(priority: .userInitiated) { [self] in
+                var options = GRPCCore.CallOptions.defaults
+                options.timeout = Self.sketchBuildTimeout
+
+                var request = Cc_Arduino_Cli_Commands_V1_UploadRequest()
+                request.instance = instance
+                request.fqbn = fqbn
+                request.sketchPath = sketchPath
+                request.port = port
+
+                do {
+                    try await core.upload(request, options: options) { response in
+                        for try await message in response.messages {
+                            switch message.message {
+                            case .some(.outStream(let data)):
+                                continuation.yield(.output(data, isError: false))
+                            case .some(.errStream(let data)):
+                                continuation.yield(.output(data, isError: true))
+                            case .some(.result), .none:
+                                break
+                            }
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    logger.error("arduino-cli upload failed: \(String(describing: error), privacy: .public)")
+                    continuation.finish(throwing: ArduinoCLIError.sketchUploadFailed(reason: Self.reason(for: error)))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     /// Searches the platform indexes for installable platforms and the boards they provide.
     ///
     /// This reads the indexes loaded by `Init`, so it works before anything is installed. The
@@ -289,11 +458,11 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         omitReleasesDetails: Bool = true
     ) async throws -> Cc_Arduino_Cli_Commands_V1_LibrarySearchResponse {
         var options = GRPCCore.CallOptions.defaults
-        options.timeout = Self.librarySearchTimeout
+        options.timeout = Self.bulkTimeout
         // The NIO transport asks this option for the payload size it accepts in both directions,
         // even though the name only mentions requests. Without it a whole-index search fails to
         // decode with `resourceExhausted: Message has exceeded the configured maximum payload size`.
-        options.maxRequestMessageBytes = Self.librarySearchPayloadLimit
+        options.maxRequestMessageBytes = Self.bulkPayloadLimit
 
         var request = Cc_Arduino_Cli_Commands_V1_LibrarySearchRequest()
         request.instance = instance
@@ -323,8 +492,7 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         version: String,
         onProgress: @escaping @Sendable (String) -> Void = { _ in }
     ) async throws {
-        let parts = platformID.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else {
+        guard let parts = Self.platformComponents(of: platformID) else {
             throw ArduinoCLIError.platformInstallFailed(
                 reason: "\"\(platformID)\" isn't a valid platform ID."
             )
@@ -335,8 +503,8 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
 
         var request = Cc_Arduino_Cli_Commands_V1_PlatformInstallRequest()
         request.instance = instance
-        request.platformPackage = parts[0]
-        request.architecture = parts[1]
+        request.platformPackage = parts.package
+        request.architecture = parts.architecture
         request.version = version
 
         try await core.platformInstall(request, options: options) { response in
@@ -346,6 +514,138 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
                     if let description = Self.progressDescription(of: progress) {
                         onProgress(description)
                     }
+                case .some(.taskProgress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.result), .none:
+                    break
+                }
+            }
+        }
+    }
+
+    /// Uninstalls a platform and its tool dependencies, reporting progress through `onProgress`.
+    func platformUninstall(
+        instance: ArduinoCoreInstance,
+        platformID: String,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws {
+        guard let parts = Self.platformComponents(of: platformID) else {
+            throw ArduinoCLIError.platformUninstallFailed(
+                reason: "\"\(platformID)\" isn't a valid platform ID."
+            )
+        }
+
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.platformInstallTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_PlatformUninstallRequest()
+        request.instance = instance
+        request.platformPackage = parts.package
+        request.architecture = parts.architecture
+
+        try await core.platformUninstall(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.taskProgress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.result), .none:
+                    break
+                }
+            }
+        }
+    }
+
+    /// Splits a platform ID like `arduino:avr` into its vendor and architecture, or `nil` when the
+    /// ID isn't in that form.
+    private static func platformComponents(of platformID: String) -> (package: String, architecture: String)? {
+        let parts = platformID.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        return (parts[0], parts[1])
+    }
+
+    /// Lists the libraries installed in the given instance.
+    ///
+    /// Built-in libraries shipped with a platform are left out, so the list lines up with what
+    /// the Library Manager can uninstall.
+    func libraryList(instance: ArduinoCoreInstance) async throws -> [InstalledLibrary] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_LibraryListRequest()
+        request.instance = instance
+        request.all = false
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_LibraryListResponse = try await core.libraryList(
+                request,
+                options: options
+            )
+            logger.log("arduino-cli library list returned \(response.installedLibraries.count) libraries")
+            return response.installedLibraries.map(InstalledLibrary.init)
+        } catch {
+            logger.error("arduino-cli library list failed: \(String(describing: error), privacy: .public)")
+            throw ArduinoCLIError.libraryListFailed(reason: Self.reason(for: error))
+        }
+    }
+
+    /// Downloads and installs the given version of a library, reporting progress through
+    /// `onProgress`.
+    ///
+    /// Installing a version newer than the installed one upgrades; an older one downgrades.
+    func libraryInstall(
+        instance: ArduinoCoreInstance,
+        name: String,
+        version: String,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.libraryInstallTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_LibraryInstallRequest()
+        request.instance = instance
+        request.name = name
+        request.version = version
+
+        try await core.libraryInstall(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.progress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.taskProgress(let progress)):
+                    if let description = Self.progressDescription(of: progress) {
+                        onProgress(description)
+                    }
+                case .some(.result), .none:
+                    break
+                }
+            }
+        }
+    }
+
+    /// Uninstalls the given version of a library, reporting progress through `onProgress`.
+    func libraryUninstall(
+        instance: ArduinoCoreInstance,
+        name: String,
+        version: String,
+        onProgress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.libraryInstallTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_LibraryUninstallRequest()
+        request.instance = instance
+        request.name = name
+        request.version = version
+
+        try await core.libraryUninstall(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
                 case .some(.taskProgress(let progress)):
                     if let description = Self.progressDescription(of: progress) {
                         onProgress(description)
