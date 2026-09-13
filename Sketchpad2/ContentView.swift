@@ -72,6 +72,14 @@ struct ContentView: View {
                 .disabled(!canUpload)
 
                 portPicker
+
+                Button {
+                    openWindow(id: AppWindowID.serialMonitor)
+                } label: {
+                    Label("Serial Monitor", systemImage: "terminal")
+                }
+                .help("Watch what the board prints and send it lines")
+                .keyboardShortcut("m", modifiers: [.command, .shift])
             }
         }
         .sheet(isPresented: setupPresented) {

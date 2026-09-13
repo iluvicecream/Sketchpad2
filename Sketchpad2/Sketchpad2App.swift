@@ -11,6 +11,7 @@ import SwiftUI
 enum AppWindowID {
     static let boardManager = "board-manager"
     static let libraryManager = "library-manager"
+    static let serialMonitor = "serial-monitor"
 }
 
 @main
@@ -35,6 +36,12 @@ struct Sketchpad2App: App {
             LibraryManagerView()
                 .environment(mainController)
         }
+
+        Window("Serial Monitor", id: AppWindowID.serialMonitor) {
+            SerialMonitorView()
+                .environment(mainController)
+        }
+        .defaultSize(width: 720, height: 420)
 
         Settings {
             SettingsView()

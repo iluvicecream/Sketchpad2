@@ -101,6 +101,20 @@ final class MainController {
         }
     }
 
+    /// Where the app is in running the serial monitor over the selected port.
+    enum SerialMonitorState: Equatable {
+        case closed
+        case opening
+        case open(baudRate: String)
+        case failed(String)
+
+        /// Whether the monitor holds the port open, which is when an upload has to wait for it.
+        var isOpen: Bool {
+            if case .open = self { return true }
+            return false
+        }
+    }
+
     private(set) var phase: Phase = .idle
     private(set) var daemonPort: Int?
     /// The Arduino Core instance created on the daemon via the `Create` RPC.
@@ -152,6 +166,42 @@ final class MainController {
 
     /// How many lines of build output the pane keeps before it starts dropping the oldest.
     private nonisolated static let outputLineLimit = 2000
+
+    /// Where the serial monitor is: shut, opening, or listening on the selected port.
+    private(set) var serialMonitor: SerialMonitorState = .closed
+
+    /// What the monitor has received, one entry per line, the last of which is still arriving.
+    private(set) var monitorLines: [MonitorOutputLine] = []
+
+    /// The baud rates the selected port's monitor accepts, sorted slowest first.
+    private(set) var monitorBaudRates: [String] = MonitorPortSetting.defaultBaudRates
+
+    /// The speed the monitor opens the port at, and switches to when it changes while connected.
+    var monitorBaudRate = MonitorPortSetting.defaultBaudRate {
+        didSet {
+            guard monitorBaudRate != oldValue else { return }
+            monitorSession?.apply(settings: [MonitorPortSetting.baudRateID: monitorBaudRate])
+        }
+    }
+
+    /// What the monitor appends to a line before sending it to the board.
+    var monitorLineEnding: MonitorLineEnding = .newline
+
+    /// The settings the daemon offers for the selected port, which the monitor opens the port with.
+    private var monitorSettings: [String: String] = [:]
+
+    /// The open monitor, when there is one.
+    private var monitorSession: SerialMonitorSession?
+
+    /// The task turning the open monitor's events into the output the window shows.
+    private var monitorConsumer: Task<Void, Never>?
+
+    /// The identifier to give the next monitor line, which only has to be unique among the lines
+    /// the window is currently showing.
+    private var nextMonitorLineID = 0
+
+    /// How many lines the serial monitor keeps before it starts dropping the oldest.
+    private nonisolated static let monitorLineLimit = 2000
 
     /// The ports the daemon last reported, listed by the editor's port menu.
     private(set) var connectedPorts: [ConnectedPort] = []
@@ -259,6 +309,8 @@ final class MainController {
         sketchOperation = .idle
         clearBuildOutput()
         nextOutputLineID = 0
+        closeSerialMonitor()
+        clearMonitorOutput()
         phase = .idle
     }
 
@@ -315,6 +367,7 @@ final class MainController {
     private func dropUnavailableSelection() {
         if !connectedPorts.contains(where: { $0.id == selectedPortID }) {
             selectedPortID = nil
+            closeSerialMonitor()
         }
     }
 
@@ -387,6 +440,11 @@ final class MainController {
         }
         guard let coreService, let instance else { return }
 
+        // An upload drives the very port the monitor holds open, so the monitor has to let go of it
+        // first and can pick it up again once the upload is done.
+        let restartMonitor = serialMonitor.isOpen
+        if restartMonitor { closeSerialMonitor() }
+
         begin(.uploading(message: nil))
         logger.log("Uploading \(sketch.name, privacy: .public) to \(port.id, privacy: .public)")
 
@@ -404,6 +462,8 @@ final class MainController {
         } catch {
             report(error as? ArduinoCLIError ?? .sketchUploadFailed(reason: Self.reason(for: error)))
         }
+
+        if restartMonitor { await openSerialMonitor() }
     }
 
     /// Empties the output pane without disturbing what the last build ended as.
@@ -495,6 +555,161 @@ final class MainController {
 
         if buildOutput.count > Self.outputLineLimit {
             buildOutput.removeFirst(buildOutput.count - Self.outputLineLimit)
+        }
+    }
+
+    /// Opens the selected port in the daemon's monitor so the board's output can be read, replacing
+    /// whatever monitor was running before.
+    func openSerialMonitor() async {
+        guard let coreService, let instance else { return }
+        guard let port = selectedPort else {
+            serialMonitor = .failed("Pick a port before opening the monitor.")
+            return
+        }
+
+        closeSerialMonitor()
+        serialMonitor = .opening
+        logger.log("Opening the serial monitor on \(port.id, privacy: .public)")
+
+        var settings = monitorSettings
+        settings[MonitorPortSetting.baudRateID] = monitorBaudRate
+
+        let session = coreService.openMonitor(
+            instance: instance,
+            port: port.daemonPort,
+            fqbn: selectedBoardFQBN,
+            settings: settings
+        )
+
+        monitorSession = session
+        monitorConsumer = Task { [weak self] in
+            for await event in session.events {
+                self?.handle(event)
+            }
+            guard let self, self.monitorSession === session else { return }
+            self.monitorSession = nil
+            if self.serialMonitor.isOpen {
+                self.serialMonitor = .failed("The monitor stopped.")
+            }
+        }
+    }
+
+    /// Connects the monitor, or disconnects it when it already holds the port.
+    func toggleSerialMonitor() {
+        if monitorSession == nil {
+            Task { await openSerialMonitor() }
+        } else {
+            closeSerialMonitor()
+        }
+    }
+
+    /// Closes the monitor and lets go of the port, leaving the output on screen.
+    func closeSerialMonitor() {
+        guard let session = monitorSession else {
+            if serialMonitor != .closed { serialMonitor = .closed }
+            return
+        }
+
+        monitorSession = nil
+        monitorConsumer?.cancel()
+        monitorConsumer = nil
+        session.close()
+        serialMonitor = .closed
+        logger.log("Serial monitor closed")
+    }
+
+    /// Reconnects the monitor when the port it was watching is no longer the one selected.
+    func reconnectSerialMonitor() async {
+        guard monitorSession != nil else { return }
+        closeSerialMonitor()
+        await openSerialMonitor()
+    }
+
+    /// Sends one line to the board, followed by whatever line ending the monitor is set to.
+    func sendMonitorLine(_ text: String) {
+        guard let session = monitorSession, serialMonitor.isOpen else { return }
+
+        let line = text + monitorLineEnding.terminator
+        guard !line.isEmpty else { return }
+        session.send(Data(line.utf8))
+    }
+
+    /// Empties the monitor's output without disturbing the connection.
+    func clearMonitorOutput() {
+        monitorLines.removeAll()
+        nextMonitorLineID = 0
+    }
+
+    /// Asks the daemon what settings the selected port's monitor takes, so the window offers the
+    /// baud rates that monitor understands rather than a fixed list.
+    func loadMonitorSettings() async {
+        guard let coreService, let instance, let port = selectedPort else { return }
+
+        let portProtocol = port.daemonPort.protocol
+        do {
+            let settings = try await coreService.monitorPortSettings(
+                instance: instance,
+                portProtocol: portProtocol.isEmpty ? "serial" : portProtocol,
+                fqbn: selectedBoardFQBN
+            )
+            monitorSettings = settings.reduce(into: [:]) { values, setting in
+                values[setting.id] = setting.value
+            }
+
+            let baudRate = settings.first(where: { $0.id == MonitorPortSetting.baudRateID })
+            if let baudRate {
+                let rates = baudRate.values.isEmpty ? MonitorPortSetting.defaultBaudRates : baudRate.values
+                monitorBaudRates = rates.sorted { (Int($0) ?? 0) < (Int($1) ?? 0) }
+                if !baudRate.value.isEmpty, !serialMonitor.isOpen {
+                    monitorBaudRate = baudRate.value
+                }
+            }
+            logger.log("Loaded \(settings.count) monitor settings for \(port.id, privacy: .public)")
+        } catch {
+            let failure = error as? ArduinoCLIError ?? .monitorSettingsFailed(reason: Self.reason(for: error))
+            logger.error(
+                "Couldn't load the monitor settings: \(failure.errorDescription ?? "unknown error", privacy: .public)"
+            )
+        }
+    }
+
+    /// Turns one event from the open monitor into what the window shows.
+    private func handle(_ event: SerialMonitorEvent) {
+        switch event {
+        case .received(let data):
+            appendReceived(data)
+        case .connected(let baudRate):
+            if let baudRate, baudRate != monitorBaudRate { monitorBaudRate = baudRate }
+            serialMonitor = .open(baudRate: monitorBaudRate)
+        case .failed(let message):
+            logger.error("The serial monitor reported \(message, privacy: .public)")
+            serialMonitor = .failed(message)
+        }
+    }
+
+    /// Adds what the board sent to the monitor's output.
+    ///
+    /// A board writes when it likes, so one chunk can hold several lines, half a line, or a line and
+    /// a half. Whole lines are added as they arrive; whatever follows the last line ending stays in
+    /// the final entry, which grows as the rest of the line comes in.
+    private func appendReceived(_ data: Data) {
+        guard !data.isEmpty else { return }
+
+        let text = String(decoding: data, as: UTF8.self)
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        for (index, piece) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
+            if index == 0, !monitorLines.isEmpty {
+                monitorLines[monitorLines.count - 1].text += piece
+            } else {
+                monitorLines.append(MonitorOutputLine(id: nextMonitorLineID, text: String(piece)))
+                nextMonitorLineID += 1
+            }
+        }
+
+        if monitorLines.count > Self.monitorLineLimit {
+            monitorLines.removeFirst(monitorLines.count - Self.monitorLineLimit)
         }
     }
 

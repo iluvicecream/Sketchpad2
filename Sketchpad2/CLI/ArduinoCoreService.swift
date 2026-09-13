@@ -416,6 +416,98 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
         }
     }
 
+    /// Lists the settings the daemon's monitor accepts for a port, so the serial monitor can offer
+    /// what that port's monitor understands rather than a fixed idea of what a port needs.
+    ///
+    /// The board is optional but disambiguates when more than one platform supplies the monitor for
+    /// a protocol.
+    func monitorPortSettings(
+        instance: ArduinoCoreInstance,
+        portProtocol: String,
+        fqbn: String?
+    ) async throws -> [MonitorPortSetting] {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.rpcTimeout
+
+        var request = Cc_Arduino_Cli_Commands_V1_EnumerateMonitorPortSettingsRequest()
+        request.instance = instance
+        request.portProtocol = portProtocol
+        if let fqbn { request.fqbn = fqbn }
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_EnumerateMonitorPortSettingsResponse =
+                try await core.enumerateMonitorPortSettings(request, options: options)
+            logger.log("arduino-cli monitor settings returned \(response.settings.count) settings")
+            return response.settings.map(MonitorPortSetting.init)
+        } catch {
+            logger.error(
+                "arduino-cli enumerate monitor port settings failed: \(String(describing: error), privacy: .public)"
+            )
+            throw ArduinoCLIError.monitorSettingsFailed(reason: Self.reason(for: error))
+        }
+    }
+
+    /// Opens the daemon's monitor on `port` and hands back the connection it opened.
+    ///
+    /// The RPC is a stream in both directions, so the session is returned straight away and the
+    /// daemon's replies arrive through `SerialMonitorSession.events` as they happen: the port is
+    /// opened by the first request, which is already queued when this returns.
+    func openMonitor(
+        instance: ArduinoCoreInstance,
+        port: Cc_Arduino_Cli_Commands_V1_Port,
+        fqbn: String?,
+        settings: [String: String]
+    ) -> SerialMonitorSession {
+        var openRequest = Cc_Arduino_Cli_Commands_V1_MonitorPortOpenRequest()
+        openRequest.instance = instance
+        openRequest.port = port
+        openRequest.fqbn = fqbn ?? ""
+        openRequest.portConfiguration = Cc_Arduino_Cli_Commands_V1_MonitorPortConfiguration(
+            settings: settings
+        )
+
+        let (requests, requestContinuation) = AsyncStream.makeStream(
+            of: Cc_Arduino_Cli_Commands_V1_MonitorRequest.self
+        )
+        let (events, eventContinuation) = AsyncStream.makeStream(of: SerialMonitorEvent.self)
+        requestContinuation.yield(SerialMonitorSession.request { $0.openRequest = openRequest })
+
+        logger.log("arduino-cli monitor opening \(port.address, privacy: .public)")
+
+        let rpc = Task.detached(priority: .userInitiated) { [self] in
+            do {
+                try await core.monitor(metadata: [:], options: .defaults) { writer in
+                    for await request in requests {
+                        try await writer.write(request)
+                    }
+                } onResponse: { response in
+                    for try await message in response.messages {
+                        switch message.message {
+                        case .some(.rxData(let data)):
+                            eventContinuation.yield(.received(data))
+                        case .some(.appliedSettings(let configuration)):
+                            eventContinuation.yield(.connected(baudRate: configuration.baudRate))
+                        case .some(.error(let text)):
+                            eventContinuation.yield(.failed(text))
+                        case .some(.success), .none:
+                            break
+                        }
+                    }
+                }
+            } catch {
+                logger.error("arduino-cli monitor failed: \(String(describing: error), privacy: .public)")
+                eventContinuation.yield(.failed(Self.reason(for: error)))
+            }
+            eventContinuation.finish()
+        }
+
+        return SerialMonitorSession(
+            requests: requestContinuation,
+            events: events,
+            rpc: rpc
+        )
+    }
+
     /// Searches the platform indexes for installable platforms and the boards they provide.
     ///
     /// This reads the indexes loaded by `Init`, so it works before anything is installed. The
