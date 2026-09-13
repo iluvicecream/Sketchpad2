@@ -197,17 +197,18 @@ final class MainController {
         }
     }
 
-    /// Installs the newest version of the given platform and refreshes the catalog when it finishes.
-    func installPlatform(_ platform: InstallablePlatform) async {
+    /// Installs the given version of a platform, upgrading or downgrading as needed, and
+    /// refreshes the catalog when it finishes.
+    func installPlatform(_ platform: InstallablePlatform, version: String) async {
         guard let coreService, let instance else { return }
-        guard !platform.latestVersion.isEmpty else { return }
+        guard platform.version(version) != nil else { return }
 
         platformInstall = .installing(platformID: platform.id, message: nil)
         do {
             try await coreService.platformInstall(
                 instance: instance,
                 platformID: platform.id,
-                version: platform.latestVersion
+                version: version
             ) { [weak self] message in
                 Task { @MainActor in
                     guard let self, case .installing(let id, _) = self.platformInstall, id == platform.id else { return }
