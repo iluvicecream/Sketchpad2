@@ -16,6 +16,9 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
     private nonisolated static let indexUpdateTimeout: Duration = .seconds(120)
     private nonisolated static let instanceInitTimeout: Duration = .seconds(120)
     private nonisolated static let platformInstallTimeout: Duration = .seconds(900)
+    private nonisolated static let librarySearchTimeout: Duration = .seconds(30)
+    /// The whole library index runs to several megabytes, well past the transport's 4 MiB default.
+    private nonisolated static let librarySearchPayloadLimit = 64 * 1024 * 1024
 
     let port: Int
 
@@ -271,6 +274,43 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
             return response.searchOutput
         } catch {
             logger.error("arduino-cli platform search failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+    }
+
+    /// Searches the library indexes for the libraries matching `searchArgs`, or for every library
+    /// when the keywords are empty.
+    ///
+    /// `omitReleasesDetails` leaves the per-version index data out of the response, which keeps a
+    /// whole-index search tractable; the latest release of each library is always reported.
+    func librarySearch(
+        instance: ArduinoCoreInstance,
+        searchArgs: String = "",
+        omitReleasesDetails: Bool = true
+    ) async throws -> Cc_Arduino_Cli_Commands_V1_LibrarySearchResponse {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.librarySearchTimeout
+        // The NIO transport asks this option for the payload size it accepts in both directions,
+        // even though the name only mentions requests. Without it a whole-index search fails to
+        // decode with `resourceExhausted: Message has exceeded the configured maximum payload size`.
+        options.maxRequestMessageBytes = Self.librarySearchPayloadLimit
+
+        var request = Cc_Arduino_Cli_Commands_V1_LibrarySearchRequest()
+        request.instance = instance
+        request.searchArgs = searchArgs
+        request.omitReleasesDetails = omitReleasesDetails
+
+        do {
+            let response: Cc_Arduino_Cli_Commands_V1_LibrarySearchResponse = try await core.librarySearch(
+                request,
+                options: options
+            )
+            logger.log("arduino-cli library search returned \(response.libraries.count) libraries")
+            return response
+        } catch {
+            // The gRPC error carries the status code and message; Foundation's description for it
+            // is only "GRPCCore.RPCError error 1", which says nothing useful.
+            logger.error("arduino-cli library search failed: \(String(describing: error), privacy: .public)")
             throw error
         }
     }

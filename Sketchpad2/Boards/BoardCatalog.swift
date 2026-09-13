@@ -49,7 +49,7 @@ struct InstallablePlatform: Identifiable, Equatable, Sendable {
 
     /// Whether the indexes offer a version newer than the installed one.
     var isUpdateAvailable: Bool {
-        isInstalled && !latestVersion.isEmpty && Self.isNewer(latestVersion, than: installedVersion)
+        isInstalled && !latestVersion.isEmpty && VersionOrder.isNewer(latestVersion, than: installedVersion)
     }
 
     /// The version the release menu starts on: what's installed, else the newest on offer.
@@ -75,15 +75,9 @@ struct InstallablePlatform: Identifiable, Equatable, Sendable {
     /// What installing the given version would do, or `nil` when it's already installed.
     func installAction(for version: String) -> PlatformInstallAction? {
         guard isInstalled else { return .install }
-        if Self.isNewer(version, than: installedVersion) { return .update }
-        if Self.isNewer(installedVersion, than: version) { return .downgrade }
+        if VersionOrder.isNewer(version, than: installedVersion) { return .update }
+        if VersionOrder.isNewer(installedVersion, than: version) { return .downgrade }
         return nil
-    }
-
-    /// Whether `lhs` is a newer release than `rhs`, comparing numbers numerically so `1.8.10`
-    /// sorts above `1.8.6` and a pre-release sorts below its final release.
-    static func isNewer(_ lhs: String, than rhs: String) -> Bool {
-        lhs.compare(rhs, options: .numeric) == .orderedDescending
     }
 
     init(_ summary: Cc_Arduino_Cli_Commands_V1_PlatformSummary) {
@@ -93,7 +87,7 @@ struct InstallablePlatform: Identifiable, Equatable, Sendable {
         self.versions = summary.releases
             .filter { !$0.key.isEmpty }
             .map { InstallablePlatformVersion(version: $0.key, release: $0.value) }
-            .sorted { Self.isNewer($0.version, than: $1.version) }
+            .sorted { VersionOrder.isNewer($0.version, than: $1.version) }
 
         // Prefer the release the install button would act on, then whatever is installed,
         // then anything the indexes offer.

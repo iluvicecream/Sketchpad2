@@ -34,6 +34,7 @@ struct Sketchpad2App: App {
 
         Window("Library Manager", id: AppWindowID.libraryManager) {
             LibraryManagerView()
+                .environment(mainController)
         }
         .windowStyle(.hiddenTitleBar)
 

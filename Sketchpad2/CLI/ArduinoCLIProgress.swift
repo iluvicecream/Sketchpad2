@@ -52,6 +52,7 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
     case indexUpdateFailed(reason: String)
     case platformSearchFailed(reason: String)
     case platformInstallFailed(reason: String)
+    case librarySearchFailed(reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -85,6 +86,8 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
             "Couldn't search the platform indexes. \(reason)"
         case .platformInstallFailed(let reason):
             "Couldn't install the platform. \(reason)"
+        case .librarySearchFailed(let reason):
+            "Couldn't search the library indexes. \(reason)"
         }
     }
 }

@@ -5,6 +5,7 @@
 
 import AppKit
 import Foundation
+import GRPCCore
 import Observation
 import os
 
@@ -49,6 +50,14 @@ final class MainController {
         case failed(String)
     }
 
+    /// Where the app is in the installable-library catalog flow.
+    enum LibraryCatalog: Equatable {
+        case idle
+        case loading
+        case loaded
+        case failed(String)
+    }
+
     /// The platform installation in flight, if any.
     enum PlatformInstall: Equatable {
         case idle
@@ -78,6 +87,12 @@ final class MainController {
 
     /// The platforms the indexes offer, sorted by name.
     private(set) var installablePlatforms: [InstallablePlatform] = []
+
+    /// The state of the installable-library catalog, used to gate the Library Manager window.
+    private(set) var libraryCatalog: LibraryCatalog = .idle
+
+    /// The libraries the indexes offer, sorted by name.
+    private(set) var installableLibraries: [InstallableLibrary] = []
 
     /// The platform installation currently in flight, if any.
     private(set) var platformInstall: PlatformInstall = .idle
@@ -148,6 +163,8 @@ final class MainController {
         boardIndexUpdate = .idle
         boardCatalog = .idle
         installablePlatforms = []
+        libraryCatalog = .idle
+        installableLibraries = []
         platformInstall = .idle
         phase = .idle
     }
@@ -224,6 +241,32 @@ final class MainController {
                 message: failure.errorDescription ?? "Couldn't install the platform."
             )
         }
+    }
+
+    /// Loads the libraries the indexes offer, so the Library Manager can browse and search them.
+    /// Safe to call whenever the Library Manager window opens.
+    func loadLibraries() async {
+        guard let coreService, let instance else { return }
+
+        libraryCatalog = .loading
+        do {
+            let response = try await coreService.librarySearch(instance: instance)
+            installableLibraries = response.libraries
+                .map(InstallableLibrary.init)
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            libraryCatalog = .loaded
+        } catch {
+            let failure = error as? ArduinoCLIError ?? .librarySearchFailed(reason: Self.reason(for: error))
+            logger.error("Couldn't load the library catalog: \(failure.errorDescription ?? "unknown error", privacy: .public)")
+            libraryCatalog = .failed(failure.errorDescription ?? "Couldn't load the library indexes.")
+        }
+    }
+
+    /// A short description of a failed RPC. Foundation's description of a gRPC error is only
+    /// "GRPCCore.RPCError error 1", so prefer the status code and message the error carries.
+    private static func reason(for error: any Error) -> String {
+        guard let rpcError = error as? RPCError else { return error.localizedDescription }
+        return "\(rpcError.code): \(rpcError.message)"
     }
 
     /// Replaces the board manager additional URLs, persists the configuration, and refreshes the
