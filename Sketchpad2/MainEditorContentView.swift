@@ -103,7 +103,7 @@ struct ContentView: View {
     }
 
     private var setupPresented: Binding<Bool> {
-        Binding(get: { !daemonBox.isDaemonReady }, set: { _ in })
+        Binding(get: { (coreBox.instance == nil) }, set: { _ in })
     }
 
     /// The sketch the toolbar builds: the editor's text, named after the document's file.

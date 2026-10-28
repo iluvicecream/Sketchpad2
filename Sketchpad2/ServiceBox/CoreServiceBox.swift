@@ -17,6 +17,7 @@ final class CoreServiceBox {
     
     // child box
     var daemonBox = ArduinoDaemonServiceBox.sharedBox
+    var rpcBox = ArduinoRPCServiceBox.sharedBox
     
     var boxState : CoreBoxState = .empty {
         didSet {
@@ -24,9 +25,18 @@ final class CoreServiceBox {
         }
     }
     
+    // arduino
+    var instance : Cc_Arduino_Cli_Commands_V1_Instance?
+    
     private init() {
         daemonBox.changeCoreBoxState = { [weak self] newState in
             self?.boxState = newState
+        }
+        daemonBox.daemonRunningSignalToRpcBox = { [weak self] newState in
+            self?.rpcBox.gotSignalFromDaemonBox(signalStatus: newState)
+        }
+        rpcBox.setInstance = { [weak self] newState in
+            self?.instance = newState
         }
     }
     

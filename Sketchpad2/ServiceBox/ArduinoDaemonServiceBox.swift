@@ -21,8 +21,8 @@ final class ArduinoDaemonServiceBox {
     }
     
     var changeCoreBoxState: ((CoreBoxState) -> Void)?
+    var daemonRunningSignalToRpcBox: ((Bool) -> Void)?
     
-    var isDaemonReady = false
     var isDaemonRunning = false {
         didSet {
             onChangeDaemonRunningStatus(
@@ -53,6 +53,7 @@ final class ArduinoDaemonServiceBox {
         
         if !isDaemonRunning {
             let isSuccess = startDaemonProcess()
+            
         }
     }
     
@@ -205,6 +206,7 @@ final class ArduinoDaemonServiceBox {
     }
     
     private func onChangeDaemonRunningStatus(oldStatus: Bool,newStatus : Bool) {
+        daemonRunningSignalToRpcBox!(newStatus)
         logger
             .debug(
                 "arduino daemon running status changed to \(newStatus)"
