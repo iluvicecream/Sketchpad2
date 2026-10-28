@@ -61,6 +61,7 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
     case libraryUninstallFailed(reason: String)
     case sketchVerifyFailed(reason: String)
     case sketchUploadFailed(reason: String)
+    case sketchEraseFailed(reason: String)
     case monitorSettingsFailed(reason: String)
 
     var errorDescription: String? {
@@ -113,6 +114,8 @@ enum ArduinoCLIError: LocalizedError, Sendable, Equatable {
             "Couldn't verify the sketch. \(reason)"
         case .sketchUploadFailed(let reason):
             "Couldn't upload the sketch. \(reason)"
+        case .sketchEraseFailed(let reason):
+            "Couldn't erase the board's flash. \(reason)"
         case .monitorSettingsFailed(let reason):
             "Couldn't read the port's monitor settings. \(reason)"
         }

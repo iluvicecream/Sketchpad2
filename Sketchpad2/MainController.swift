@@ -82,18 +82,20 @@ final class MainController {
         case failed(libraryName: String, message: String)
     }
 
-    /// Where the app is in verifying or uploading the sketch the editor holds.
+    /// Where the app is in verifying or uploading the sketch the editor holds, or in erasing the
+    /// board it goes to.
     enum SketchOperation: Equatable {
         case idle
         case verifying(message: String?)
         case uploading(message: String?)
+        case erasing(message: String?)
         case failed(message: String)
         case finished(message: String)
 
         /// Whether the toolchain is still working, which is when the editor holds off repeating it.
         var isRunning: Bool {
             switch self {
-            case .verifying, .uploading:
+            case .verifying, .uploading, .erasing:
                 true
             case .idle, .failed, .finished:
                 false
@@ -466,6 +468,37 @@ final class MainController {
         if restartMonitor { await openSerialMonitor() }
     }
 
+    /// Erases the flash of the board on the selected port, leaving it with nothing to run until the
+    /// next upload.
+    func eraseFlash() async {
+        guard !sketchOperation.isRunning else { return }
+        guard let fqbn = selectedBoardFQBN else {
+            sketchOperation = .failed(message: "Pick a board before erasing.")
+            return
+        }
+        guard let port = selectedPort else {
+            sketchOperation = .failed(message: "Pick a port before erasing.")
+            return
+        }
+        guard let coreService, let instance else { return }
+
+        // Erasing drives the very port the monitor holds open, the same way an upload does.
+        let restartMonitor = serialMonitor.isOpen
+        if restartMonitor { closeSerialMonitor() }
+
+        begin(.erasing(message: nil))
+        logger.log("Erasing the flash of the board at \(port.id, privacy: .public)")
+
+        do {
+            try await run(coreService.eraseFlash(instance: instance, fqbn: fqbn, port: port.daemonPort))
+            sketchOperation = .finished(message: "Erased the flash at \(port.id).")
+        } catch {
+            report(error as? ArduinoCLIError ?? .sketchEraseFailed(reason: Self.reason(for: error)))
+        }
+
+        if restartMonitor { await openSerialMonitor() }
+    }
+
     /// Empties the output pane without disturbing what the last build ended as.
     func clearBuildOutput() {
         buildOutput.removeAll()
@@ -509,6 +542,8 @@ final class MainController {
             sketchOperation = .verifying(message: message)
         case .uploading:
             sketchOperation = .uploading(message: message)
+        case .erasing:
+            sketchOperation = .erasing(message: message)
         case .idle, .failed, .finished:
             break
         }

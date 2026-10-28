@@ -384,9 +384,6 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
     ) -> AsyncThrowingStream<SketchBuildEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) { [self] in
-                var options = GRPCCore.CallOptions.defaults
-                options.timeout = Self.sketchBuildTimeout
-
                 var request = Cc_Arduino_Cli_Commands_V1_UploadRequest()
                 request.instance = instance
                 request.fqbn = fqbn
@@ -394,18 +391,7 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
                 request.port = port
 
                 do {
-                    try await core.upload(request, options: options) { response in
-                        for try await message in response.messages {
-                            switch message.message {
-                            case .some(.outStream(let data)):
-                                continuation.yield(.output(data, isError: false))
-                            case .some(.errStream(let data)):
-                                continuation.yield(.output(data, isError: true))
-                            case .some(.result), .none:
-                                break
-                            }
-                        }
-                    }
+                    try await drain(request, into: continuation)
                     continuation.finish()
                 } catch {
                     logger.error("arduino-cli upload failed: \(String(describing: error), privacy: .public)")
@@ -414,6 +400,89 @@ nonisolated final class ArduinoCoreService: @unchecked Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Erases the flash of the board on `port`, streaming whatever the toolchain prints until the
+    /// erase ends.
+    ///
+    /// The daemon has no erase RPC, so the board's own uploader is run with the arguments its
+    /// platform's erase recipe carries instead of the ones that write an image — the esptool-based
+    /// platforms, the ESP32 cores among them, take `erase-flash`. A platform whose uploader has no
+    /// way to erase prints whichever complaint its tool makes about those arguments, which is what
+    /// the pane then shows.
+    func eraseFlash(
+        instance: ArduinoCoreInstance,
+        fqbn: String,
+        port: Cc_Arduino_Cli_Commands_V1_Port
+    ) -> AsyncThrowingStream<SketchBuildEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task.detached(priority: .userInitiated) { [self] in
+                do {
+                    var request = Cc_Arduino_Cli_Commands_V1_UploadRequest()
+                    request.instance = instance
+                    request.fqbn = fqbn
+                    request.port = port
+                    // The uploader holds out for an image to write even when the arguments below
+                    // replace the writing with an erase, so it gets a file of its own to name.
+                    request.importFile = try Self.eraseStandIn().path(percentEncoded: false)
+                    request.uploadProperties = [Self.eraseProperty]
+
+                    try await drain(request, into: continuation)
+                    continuation.finish()
+                } catch {
+                    logger.error("arduino-cli erase failed: \(String(describing: error), privacy: .public)")
+                    continuation.finish(throwing: ArduinoCLIError.sketchEraseFailed(reason: Self.reason(for: error)))
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Runs one `Upload` RPC, handing what the toolchain prints to the app as build output.
+    private func drain(
+        _ request: Cc_Arduino_Cli_Commands_V1_UploadRequest,
+        into continuation: AsyncThrowingStream<SketchBuildEvent, Error>.Continuation
+    ) async throws {
+        var options = GRPCCore.CallOptions.defaults
+        options.timeout = Self.sketchBuildTimeout
+
+        try await core.upload(request, options: options) { response in
+            for try await message in response.messages {
+                switch message.message {
+                case .some(.outStream(let data)):
+                    continuation.yield(.output(data, isError: false))
+                case .some(.errStream(let data)):
+                    continuation.yield(.output(data, isError: true))
+                case .some(.result), .none:
+                    break
+                }
+            }
+        }
+    }
+
+    /// One line of an upload request that asks the board's uploader to erase the flash instead of
+    /// writing to it: the arguments the platform's own erase recipe passes its tool, which for the
+    /// esptool-based platforms wipes the whole chip.
+    private nonisolated static let eraseProperty =
+        "upload.pattern_args=--chip {build.mcu} --port \"{serial.port}\" --baud {upload.speed} "
+        + "{upload.flags} --before default-reset --after hard-reset erase-flash"
+
+    /// A stand-in for the build an upload writes.
+    ///
+    /// The uploader wants a binary before it will run at all, whether or not the run writes one,
+    /// and producing a real build would cost a compile that an erase has no use for. The file is
+    /// never sent to the board: the erase arguments leave the uploader with nothing to write.
+    private nonisolated static func eraseStandIn() throws -> URL {
+        let manager = FileManager.default
+        let folder = manager.temporaryDirectory
+            .appending(path: "com.perr.Sketchpad2", directoryHint: .isDirectory)
+        try manager.createDirectory(at: folder, withIntermediateDirectories: true)
+
+        let file = folder.appending(path: "Erase.bin", directoryHint: .notDirectory)
+        if !manager.fileExists(atPath: file.path(percentEncoded: false)) {
+            try Data([0x00]).write(to: file)
+        }
+        return file
     }
 
     /// Lists the settings the daemon's monitor accepts for a port, so the serial monitor can offer

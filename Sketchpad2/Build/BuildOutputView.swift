@@ -5,8 +5,8 @@
 
 import SwiftUI
 
-/// The pane under the editor that shows what the toolchain printed while verifying or uploading,
-/// and how the last build ended.
+/// The pane under the editor that shows what the toolchain printed while verifying, uploading, or
+/// erasing, and how the last build ended.
 struct BuildOutputView: View {
     @Environment(MainController.self) private var mainController
     /// Hides the pane. The output stays put, so the next build can show it again.
@@ -49,7 +49,7 @@ struct BuildOutputView: View {
     @ViewBuilder
     private var statusIcon: some View {
         switch mainController.sketchOperation {
-        case .verifying, .uploading:
+        case .verifying, .uploading, .erasing:
             ProgressView()
                 .controlSize(.small)
         case .failed:
@@ -73,6 +73,8 @@ struct BuildOutputView: View {
             message.map { "Verifying… \($0)" } ?? "Verifying…"
         case .uploading(let message):
             message.map { "Uploading… \($0)" } ?? "Uploading…"
+        case .erasing(let message):
+            message.map { "Erasing… \($0)" } ?? "Erasing…"
         case .failed(let message):
             message
         case .finished(let message):

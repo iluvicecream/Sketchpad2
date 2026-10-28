@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  MainEditorContentView.swift
 //  Sketchpad2
 //
 //  Created by perr on 9/12/2569 BE.
@@ -15,6 +15,9 @@ struct ContentView: View {
     @State private var portsPresented = false
     @State private var boardPortPickerPresented = false
     @State private var buildOutputPresented = false
+    
+    private var coreBox = CoreServiceBox.sharedBox
+    private var daemonBox = ArduinoDaemonServiceBox.sharedBox
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,7 +32,7 @@ struct ContentView: View {
             }
         }
         .task {
-            mainController.start()
+            coreBox.startTask()
         }
         .task(id: mainController.isReady) {
             guard mainController.isReady else { return }
@@ -71,6 +74,14 @@ struct ContentView: View {
                 .keyboardShortcut("u", modifiers: .command)
                 .disabled(!canUpload)
 
+                Button {
+                    eraseFlash()
+                } label: {
+                    Label("Erase Flash", systemImage: "eraser")
+                }
+                .help("Erase the board's flash memory")
+                .disabled(!canEraseFlash)
+
                 portPicker
 
                 Button {
@@ -83,7 +94,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: setupPresented) {
-            ArduinoCLISetupView()
+            SetupSheetView()
                 .interactiveDismissDisabled(true)
         }
         .sheet(isPresented: $boardPortPickerPresented) {
@@ -92,7 +103,7 @@ struct ContentView: View {
     }
 
     private var setupPresented: Binding<Bool> {
-        Binding(get: { !mainController.isReady }, set: { _ in })
+        Binding(get: { !daemonBox.isDaemonReady }, set: { _ in })
     }
 
     /// The sketch the toolbar builds: the editor's text, named after the document's file.
@@ -113,6 +124,11 @@ struct ContentView: View {
         canBuild && mainController.selectedPortID != nil
     }
 
+    /// Erasing drives the board the way an upload does, so it asks the editor for the same things.
+    private var canEraseFlash: Bool {
+        canUpload
+    }
+
     /// Compiles the editor's sketch, showing the pane the toolchain writes to.
     private func verify() {
         buildOutputPresented = true
@@ -125,6 +141,12 @@ struct ContentView: View {
         buildOutputPresented = true
         let sketch = sketch
         Task { await mainController.upload(sketch) }
+    }
+
+    /// Wipes the flash of the board on the selected port, showing the pane as the toolchain works.
+    private func eraseFlash() {
+        buildOutputPresented = true
+        Task { await mainController.eraseFlash() }
     }
 
     /// The dropdown listing the connected ports, so the sketch knows where to upload.
