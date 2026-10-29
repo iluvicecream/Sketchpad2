@@ -41,19 +41,22 @@ final class ArduinoDaemonServiceBox {
         logger.debug("daemon box start")
         changeCoreBoxState?(.daemonBoxStart)
         let didExistingDaemonInstallationExist = checkExistingDaemonInstallation()
-        if !didExistingDaemonInstallationExist {
-            Task {
+        Task {
+            if didExistingDaemonInstallationExist == false {
+                logger.debug("install loop")
                 let isSuccess = await startInstallingDaemon()
-                if !isSuccess {
+                if isSuccess == false {
                     changeCoreBoxState?(.daemonBoxError)
                     return
                 }
             }
-        }
-        
-        if !isDaemonRunning {
-            let isSuccess = startDaemonProcess()
             
+            if isDaemonRunning == false {
+                let isSuccess = startDaemonProcess()
+                if isSuccess {
+                    daemonRunningSignalToRpcBox!(true)
+                }
+            }
         }
     }
     
@@ -181,13 +184,13 @@ final class ArduinoDaemonServiceBox {
             boxState = .daemonStarted
             isDaemonRunning = true
             logger.debug("daemon started with pid \(process.processIdentifier)")
+            return true
         } catch {
             boxState = .daemonFailedToStarted
             isDaemonRunning = false
             logger.fault("daemon failed to started with reason \(error)")
             return false
         }
-        return false
     }
     
     func stopDaemonProcess() {
@@ -206,7 +209,6 @@ final class ArduinoDaemonServiceBox {
     }
     
     private func onChangeDaemonRunningStatus(oldStatus: Bool,newStatus : Bool) {
-        daemonRunningSignalToRpcBox!(newStatus)
         logger
             .debug(
                 "arduino daemon running status changed to \(newStatus)"
