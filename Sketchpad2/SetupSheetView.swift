@@ -6,8 +6,6 @@
 import SwiftUI
 
 struct SetupSheetView: View {
-    @Environment(MainController.self) private var mainController
-    
     var coreBox = CoreServiceBox.sharedBox
 
     var body: some View {

@@ -19,9 +19,11 @@ final class ArduinoRPCServiceBox {
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "ArduinoRPCBox")
     
     private var transport: HTTP2ClientTransport.Posix?
-    private var client: Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.Client<HTTP2ClientTransport.Posix>?
+    var client: Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.Client<HTTP2ClientTransport.Posix>?
     
     var setInstance: ((Cc_Arduino_Cli_Commands_V1_Instance) -> Void)?
+    var instance : Cc_Arduino_Cli_Commands_V1_Instance?
+    var hasSetInstance : Bool = false
     
     var boxState : ArduinoRPCBoxState = .empty {
         didSet {
@@ -70,7 +72,27 @@ final class ArduinoRPCServiceBox {
             do {
                 let rsp = try await create()
                 logger.debug("create rsp \(rsp.debugDescription)")
+                instance = rsp.instance
+                
+                let updateIndexReq = Cc_Arduino_Cli_Commands_V1_UpdateIndexRequest.with {
+                    $0.instance = instance!
+                }
+                try await client!.updateIndex(updateIndexReq) { response in
+                    for try await message in response.messages {
+                        if case .downloadProgress(let progress) = message.message, progress.end.success {
+                            self.logger.debug("package index download complete")
+                        }
+                        if case .result(let result) = message.message {
+                            self.logger.debug("\(result.debugDescription)")
+                            
+                        }
+                    }
+                }
+                try await reloadInstance()
+                
                 setInstance!(rsp.instance)
+                hasSetInstance = true
+                return
             } catch {
                 logger.error("failed to setup rpc instance \(error)")
                 return
@@ -91,7 +113,18 @@ final class ArduinoRPCServiceBox {
          
         let response = try await client.create(request,options: options)
         return response
-     }
+    }
+    
+    private func reloadInstance() async throws {
+        let initReq = Cc_Arduino_Cli_Commands_V1_InitRequest.with {
+            $0.instance = self.instance!
+        }
+        try await client!.`init`(initReq) { response in
+            for try await _ in response.messages {
+                
+            }
+        }
+    }
     
     private func onChangeBoxState(oldState: ArduinoRPCBoxState,newState: ArduinoRPCBoxState){
         logger
