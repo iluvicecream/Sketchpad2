@@ -115,7 +115,7 @@ final class ArduinoRPCServiceBox {
         return response
     }
     
-    private func reloadInstance() async throws {
+    func reloadInstance() async throws {
         let initReq = Cc_Arduino_Cli_Commands_V1_InitRequest.with {
             $0.instance = self.instance!
         }

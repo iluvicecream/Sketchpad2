@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct Sketchpad2App: App {
+    @AppStorage("app_theme") private var selectedTheme: AppTheme = .system
+
     var body: some Scene {
         DocumentGroup { document in
             ContentView(document: document)
+                .preferredColorScheme(selectedTheme.colorScheme)
         } makeDocument: { configuration, context in
             Sketchpad2Document()
         }
@@ -19,6 +22,7 @@ struct Sketchpad2App: App {
 
         Settings {
             SettingsView()
+                .preferredColorScheme(selectedTheme.colorScheme)
         }
     }
 }
