@@ -19,6 +19,12 @@ struct ContentView: View {
     
     private var coreBox = CoreServiceBox.sharedBox
     private var daemonBox = ArduinoDaemonServiceBox.sharedBox
+    private var buildBox = BuildServiceBox.sharedBox
+    
+    // port
+    @State var selectedPortAddress : String = ""
+    @AppStorage("selectedBoardFqbn") var selectedBoardFqbn: String = ""
+
     
     @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
     @State private var selectedTab: TabValue = .editor
@@ -32,9 +38,14 @@ struct ContentView: View {
         } detail : {
             switch selectedTab {
             case .editor:
-                CodeEditorView(text: $document.text)
-                    .ignoresSafeArea(.container, edges: .top)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VSplitView {
+                    CodeEditorView(text: $document.text)
+                        .ignoresSafeArea(.container, edges: .top)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if buildOutputPresented {
+                        buildConsoleView
+                    }
+                }
             case .board:
                 BoardManagerView()
             case .library:
@@ -43,9 +54,20 @@ struct ContentView: View {
         }
         .task {
             coreBox.startTask()
+            
+        }
+        .task(id: coreBox.instance == nil) {
+            do {
+                guard coreBox.instance != nil else { return }
+                try await buildBox.boardListAll()
+                while !Task.isCancelled {
+                    try await buildBox.boardList()
+                    try? await Task.sleep(for: .seconds(2))
+                }
+            } catch {}
         }
         .toolbar {
-            ToolbarItemGroup(placement: .principal) {
+            ToolbarItemGroup(placement: .navigation) {
                 Picker("Tab", selection: $selectedTab) {
                     Label("Editor", systemImage: "ellipsis.curlybraces").tag(TabValue.editor)
                     Label("Board Manager", systemImage: "cpu").tag(TabValue.board)
@@ -56,6 +78,23 @@ struct ContentView: View {
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
+                Picker("Port", selection: $selectedPortAddress) {
+                    Text("Select Port").tag("")
+                    ForEach(buildBox.detectedPorts, id: \.port.address) { detected in
+                        Text(portTitle(detected)).tag(detected.port.address)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth:200)
+                
+                Picker("Board", selection: $selectedBoardFqbn) {
+                    Text("Select Board").tag("")
+                    ForEach(buildBox.boardLists, id: \.fqbn) { board in
+                        Text(board.name).tag(board.fqbn)
+                    }
+                }
+                .frame(maxWidth:250)
+                
                 Button {
                     verify()
                 } label: {
@@ -94,25 +133,34 @@ struct ContentView: View {
     }
 
     private var canBuild: Bool {
-        return true
+        return !selectedBoardFqbn.isEmpty && !buildBox.isBuilding && !buildBox.isUploading
     }
 
     private var canUpload: Bool {
-        return true
+        return canBuild && !selectedPortAddress.isEmpty
     }
 
     private var canEraseFlash: Bool {
-        return true
+        return canUpload
     }
 
     private func verify() {
         buildOutputPresented = true
-        //Task { await mainController.verify(sketch) }
+        Task {
+            await buildBox
+                .compile(code: document.text, fqbn: selectedBoardFqbn)
+        }
     }
 
     private func upload() {
         buildOutputPresented = true
-        //Task { await mainController.upload(sketch) }
+        Task {
+            await buildBox.upload(
+                code: document.text,
+                fqbn: selectedBoardFqbn,
+                portAddress: selectedPortAddress
+            )
+        }
     }
 
     private func eraseFlash() {
@@ -120,4 +168,46 @@ struct ContentView: View {
         //Task { await mainController.eraseFlash() }
     }
 
+    private func portTitle(_ detected: Cc_Arduino_Cli_Commands_V1_DetectedPort) -> String {
+        let address = detected.port.address
+        if let board = detected.matchingBoards.first {
+            return "\(address) (\(board.name))"
+        }
+        return address
+    }
+    
+    private var buildConsoleView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(
+                    buildBox.isBuilding ? "Compiling..." : (
+                        buildBox.isUploading
+                        ? "Uploading..." : "Output")
+                )
+                .font(.caption.bold())
+                if buildBox.isBuilding || buildBox.isUploading {
+                    ProgressView().controlSize(.small)
+                }
+                Spacer()
+                Button {
+                    buildOutputPresented = false
+                } label : {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+            }
+            .padding(.horizontal,10)
+            .padding(.vertical,6)
+            Divider()
+            ScrollView {
+                Text(buildBox.consoleOutput)
+                    .font(.system(.caption,design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(10)
+            }
+        }
+        .frame(minHeight: 140, idealHeight: 200)
+        .background(.background)
+    }
 }

@@ -81,6 +81,7 @@ struct BoardDetailView : View {
     
     var rpcBox = ArduinoRPCServiceBox.sharedBox
     var boardBox = BoardServiceBox.sharedBox
+    var buildBox = BuildServiceBox.sharedBox
     
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "BoardDetail")
     
@@ -134,14 +135,17 @@ struct BoardDetailView : View {
                         }
                     }
                     .fixedSize()
+                    .controlSize(.extraLarge)
                     if isInstalled {
                         Button {
                         } label : {
                             Label("Installed", systemImage: "checkmark")
                         }
+                        .controlSize(.extraLarge)
                         .buttonStyle(.glassProminent)
                         .foregroundStyle(.green)
                         .frame(maxWidth: .infinity, alignment: .trailing)
+                        .disabled(isDownloading || isInstalled || selectedVersion.isEmpty)
                     }else {
                         Button {
                             Task {
@@ -157,6 +161,7 @@ struct BoardDetailView : View {
                                     isInstalled = true
                                 }
                                 try await rpcBox.reloadInstance()
+                                try await buildBox.boardListAll()
                             }
                         } label : {
                             if isDownloading {
@@ -166,8 +171,10 @@ struct BoardDetailView : View {
                                 Label("Install", systemImage: "arrow.down")
                             }
                         }
+                        .controlSize(.extraLarge)
                         .buttonStyle(.glassProminent)
                         .frame(maxWidth: .infinity, alignment: .trailing)
+                        .disabled(isDownloading || isInstalled || selectedVersion.isEmpty)
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)

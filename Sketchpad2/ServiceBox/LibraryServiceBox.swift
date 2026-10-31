@@ -62,4 +62,38 @@ final class LibraryServiceBox {
           }
       }
    
+    func install(item: LibraryItem, selectedVersion: String) async throws -> Bool {
+        guard let instance = rpcBox.instance,
+              let client = rpcBox.client else {
+            logger.error("Missing RPC client/instance")
+            return false
+        }
+        
+        let req = Cc_Arduino_Cli_Commands_V1_LibraryInstallRequest.with {
+            $0.instance = instance
+            $0.name = item.summary.name
+            $0.version = selectedVersion
+        }
+        
+        var options = CallOptions.defaults
+        options.maxRequestMessageBytes = 100 * 1024 * 1024
+        options.maxResponseMessageBytes = 100 * 1024 * 1024
+        
+        return try await client.libraryInstall(req, options: options) { response in
+            for try await msg in response.messages {
+                switch msg.message {
+                case .progress(let download):
+                    self.logger.debug("library download progress: \(download.debugDescription)")
+                case .taskProgress(let task):
+                    self.logger.debug("library task progress: \(task.debugDescription)")
+                    if task.completed {
+                        try await self.rpcBox.reloadInstance()
+                    }
+                default:
+                    break
+                }
+            }
+            return true
+        }
+    }
 }
