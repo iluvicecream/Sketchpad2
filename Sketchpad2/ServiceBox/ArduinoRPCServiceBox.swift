@@ -19,6 +19,7 @@ final class ArduinoRPCServiceBox {
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "ArduinoRPCBox")
     
     private var transport: HTTP2ClientTransport.Posix?
+    private var baseClient: GRPCClient<HTTP2ClientTransport.Posix>?
     var client: Cc_Arduino_Cli_Commands_V1_ArduinoCoreService.Client<HTTP2ClientTransport.Posix>?
     
     var setInstance: ((Cc_Arduino_Cli_Commands_V1_Instance) -> Void)?
@@ -51,6 +52,7 @@ final class ArduinoRPCServiceBox {
             )
             
             let baseClient = GRPCClient(transport: transport!)
+            self.baseClient = baseClient
             client = Cc_Arduino_Cli_Commands_V1_ArduinoCoreService
                 .Client(wrapping: baseClient)
             

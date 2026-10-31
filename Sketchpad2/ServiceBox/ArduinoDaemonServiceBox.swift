@@ -32,6 +32,8 @@ final class ArduinoDaemonServiceBox {
         }
     }
     var daemonProcess : Process?
+    private var daemonStdinPipe : Pipe?
+    private var daemonStdoutPipe : Pipe?
     
     private init() {
         
@@ -166,13 +168,23 @@ final class ArduinoDaemonServiceBox {
         process.executableURL = binaryURL
         process.arguments = ["daemon"]
         
+        let stdinPipe = Pipe()
+        process.standardInput = stdinPipe
+        daemonStdinPipe = stdinPipe
+        
         let pipe = Pipe()
         process.standardOutput = pipe
-                
+        daemonStdoutPipe = pipe
+        
+        let logger = self.logger
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
             if let output = String(data: data, encoding: .utf8), !output.isEmpty {
-                self.logger.debug(
+                logger.debug(
                     "daemon pipe out \(output.trimmingCharacters(in: .whitespacesAndNewlines))"
                 )
             }
@@ -194,6 +206,10 @@ final class ArduinoDaemonServiceBox {
     }
     
     func stopDaemonProcess() {
+        daemonStdoutPipe?.fileHandleForReading.readabilityHandler = nil
+        try? daemonStdinPipe?.fileHandleForWriting.close()
+        daemonStdinPipe = nil
+        daemonStdoutPipe = nil
         if daemonProcess?.isRunning == true {
             daemonProcess?.terminate()
             logger.info("stopped daemon")
