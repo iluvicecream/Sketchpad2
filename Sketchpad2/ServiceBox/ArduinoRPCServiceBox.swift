@@ -72,10 +72,9 @@ final class ArduinoRPCServiceBox {
             do {
                 let rsp = try await create()
                 logger.debug("create rsp \(rsp.debugDescription)")
-                instance = rsp.instance
-                
+                let newInstance = rsp.instance
                 let updateIndexReq = Cc_Arduino_Cli_Commands_V1_UpdateIndexRequest.with {
-                    $0.instance = instance!
+                    $0.instance = newInstance
                 }
                 try await client!.updateIndex(updateIndexReq) { response in
                     for try await message in response.messages {
@@ -88,8 +87,35 @@ final class ArduinoRPCServiceBox {
                         }
                     }
                 }
-                try await reloadInstance()
+                let initReq = Cc_Arduino_Cli_Commands_V1_InitRequest.with {
+                    $0.instance = newInstance
+                }
+                try await client!.`init`(initReq) { response in
+                    for try await _ in response.messages {
+                        
+                    }
+                }
                 
+                let updateLibrariesIndexReq = Cc_Arduino_Cli_Commands_V1_UpdateLibrariesIndexRequest.with {
+                    $0.instance = newInstance
+                }
+                try await client!.updateLibrariesIndex(updateLibrariesIndexReq) { response in
+                    for try await message in response.messages {
+                        if case .downloadProgress(let progress) = message.message, progress.end.success {
+                            self.logger.debug("package index download complete")
+                        }
+                        if case .result(let result) = message.message {
+                            self.logger.debug("\(result.debugDescription)")
+                            
+                        }
+                    }
+                }
+                try await client!.`init`(initReq) { response in
+                    for try await _ in response.messages {
+                        
+                    }
+                }
+                instance = rsp.instance
                 setInstance!(rsp.instance)
                 hasSetInstance = true
                 return

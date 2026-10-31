@@ -1,7 +1,5 @@
 import AppKit
 
-/// Token colors for the editor. Every color is resolved per appearance so the
-/// editor recolors immediately when the system switches between light and dark.
 struct SyntaxTheme: Sendable {
     private struct Components: Sendable {
         let red: Double
@@ -52,7 +50,6 @@ struct SyntaxTheme: Sendable {
     }
 }
 
-/// Applies token colors to a text storage without registering undo steps.
 @MainActor
 enum SyntaxHighlighter {
     static func highlight(

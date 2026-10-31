@@ -1,6 +1,5 @@
 import AppKit
 
-/// Marker kinds the gutter can render next to a line.
 enum GutterMark: Sendable, Hashable {
     case breakpoint
     case bookmark
@@ -8,20 +7,13 @@ enum GutterMark: Sendable, Hashable {
     case warning
 }
 
-/// Line-number gutter with a reserved marker lane.
-///
-/// Line numbers come from the text view's TextKit 2 layout fragments, so they stay
-/// aligned while scrolling. The marker lane is drawn but intentionally empty: it is
-/// the seam where compile diagnostics or breakpoints can be attached later.
 @MainActor
 final class GutterRulerView: NSRulerView {
 
-    /// Marks keyed by one-based line number.
     var marks: [Int: GutterMark] = [:] {
         didSet { needsDisplay = true }
     }
 
-    /// One-based number of the line containing the insertion point.
     var currentLine: Int = 1 {
         didSet {
             if currentLine != oldValue { needsDisplay = true }
@@ -71,21 +63,18 @@ final class GutterRulerView: NSRulerView {
 
     // MARK: - State updates
 
-    /// Recomputes the cached line count. Called when the document text changes.
     func updateLineCount(from textView: NSTextView) {
         let text = textView.string as NSString
         lineCount = newlineCount(in: text, limit: text.length) + 1
         needsDisplay = true
     }
 
-    /// Recomputes the highlighted line from the text view's insertion point.
     func updateCurrentLine(from textView: NSTextView) {
         let text = textView.string as NSString
         let caret = min(max(0, textView.selectedRange().location), text.length)
         currentLine = newlineCount(in: text, limit: caret) + 1
     }
 
-    /// Counts line breaks before `limit`, treating CRLF as a single break.
     private func newlineCount(in text: NSString, limit: Int) -> Int {
         var count = 0
         var index = 0
@@ -176,8 +165,6 @@ final class GutterRulerView: NSRulerView {
         }
     }
 
-    /// Number of lines covered by a layout fragment. Wrapping is off, so a fragment
-    /// is normally a single line; the newline count keeps multi-paragraph fragments correct.
     private func paragraphCount(of fragment: NSTextLayoutFragment) -> Int {
         guard let paragraph = fragment.textElement as? NSTextParagraph else { return 1 }
         let text = paragraph.attributedString.string as NSString

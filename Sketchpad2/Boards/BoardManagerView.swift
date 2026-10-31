@@ -8,15 +8,9 @@ import SwiftProtobuf
 import os
 import GRPCCore
 
-struct PlatformItem: Identifiable, Hashable {
-    var id: String { metadataId }
-    var metadataId: String
-    var readableName: String
-    var summary : Cc_Arduino_Cli_Commands_V1_PlatformSummary
-}
-
 struct BoardManagerView: View {
     var rpcBox = ArduinoRPCServiceBox.sharedBox
+    var boardBox = BoardServiceBox.sharedBox
     
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "BoardView")
     
@@ -70,48 +64,12 @@ struct BoardManagerView: View {
             }
         }
         .task {
-            await loadPlatforms()
+            self.items = await boardBox.loadPlatforms()
+            if self.items != [] {
+                isSearchDone = true
+            }
         }
     }
-    
-    @MainActor
-    private func loadPlatforms() async {
-          guard let instance = rpcBox.instance, let client = rpcBox.client else {
-              logger.error("RPC client or instance is nil")
-              isSearchDone = true
-              return
-          }
-          
-          do {
-              let req = Cc_Arduino_Cli_Commands_V1_PlatformSearchRequest.with {
-                  $0.instance = instance
-                  $0.searchArgs = ""
-              }
-              let resp = try await client.platformSearch(req)
-              
-              var loadedItems: [PlatformItem] = []
-              for summary in resp.searchOutput {
-                  let latestRelease = summary.releases[summary.latestVersion]
-                  let readableName = latestRelease?.name.isEmpty == false
-                      ? latestRelease!.name
-                      : summary.metadata.id
-                  
-                  let newItem = PlatformItem(
-                      metadataId: summary.metadata.id,
-                      readableName: readableName,
-                      summary: summary
-                  )
-                  loadedItems.append(newItem)
-              }
-              
-              self.items = loadedItems
-              self.isSearchDone = true
-              logger.debug("platform search result \(resp.debugDescription)")
-          } catch {
-              self.isSearchDone = true
-              logger.error("platform search error: \(error.localizedDescription)")
-          }
-      }
 }
 
 struct BoardDetailView : View {
@@ -122,6 +80,7 @@ struct BoardDetailView : View {
     @State private var isInstalled : Bool = false
     
     var rpcBox = ArduinoRPCServiceBox.sharedBox
+    var boardBox = BoardServiceBox.sharedBox
     
     private let logger = Logger(subsystem: "com.perr.Sketchpad2", category: "BoardDetail")
     
@@ -187,7 +146,16 @@ struct BoardDetailView : View {
                         Button {
                             Task {
                                 logger.debug("button task run")
-                                try await install()
+                                isDownloading = true
+                                var ret = try await boardBox
+                                    .install(
+                                        item: item,
+                                        selectedVersion: selectedVersion
+                                    )
+                                if ret {
+                                    isDownloading = false
+                                    isInstalled = true
+                                }
                                 try await rpcBox.reloadInstance()
                             }
                         } label : {
@@ -206,49 +174,6 @@ struct BoardDetailView : View {
             }
         }
         .padding(16)
-        HStack(alignment: .top) {
-            Text(selectedVersion)
-        }
         Spacer()
-    }
-    
-    @MainActor
-    private func install() async throws -> Bool {
-        let parts = item.metadataId.split(separator: ":").map(String.init)
-        
-        guard parts.count >= 2,
-              let instance = rpcBox.instance,
-              let client = rpcBox.client else {
-            logger.error("Invalid metadataId or missing RPC client/instance")
-            return false
-        }
-    
-        
-        let req = Cc_Arduino_Cli_Commands_V1_PlatformInstallRequest.with {
-            $0.instance = rpcBox.instance!
-            $0.platformPackage = parts[0]
-            $0.architecture = parts[1]
-            $0.version = selectedVersion
-        }
-        isDownloading = true
-        defer { isDownloading = false }
-        
-        return try await client.platformInstall(req) { response in
-            for try await msg in response.messages {
-                switch msg.message {
-                case .progress(let download):
-                    logger.debug("download progress: \(download.debugDescription)")
-                case .taskProgress(let task):
-                    logger.debug("task progress: \(task.debugDescription)")
-                    if task.completed {
-                        try await rpcBox.reloadInstance()
-                        isInstalled = true
-                    }
-                default:
-                    break
-                }
-            }
-            return true
-        }
     }
 }

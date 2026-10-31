@@ -38,7 +38,7 @@ struct ContentView: View {
             case .board:
                 BoardManagerView()
             case .library:
-                Text("Placeholdder")
+                LibraryManagerView()
             }
         }
         .task {
@@ -105,19 +105,16 @@ struct ContentView: View {
         return true
     }
 
-    /// Compiles the editor's sketch, showing the pane the toolchain writes to.
     private func verify() {
         buildOutputPresented = true
         //Task { await mainController.verify(sketch) }
     }
 
-    /// Compiles the editor's sketch and sends it to the board, showing the pane as it goes.
     private func upload() {
         buildOutputPresented = true
         //Task { await mainController.upload(sketch) }
     }
 
-    /// Wipes the flash of the board on the selected port, showing the pane as the toolchain works.
     private func eraseFlash() {
         buildOutputPresented = true
         //Task { await mainController.eraseFlash() }

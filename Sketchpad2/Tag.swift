@@ -26,7 +26,7 @@ struct TagView : View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .foregroundStyle(tagTextColor) // Text & Icon color
+        .foregroundStyle(tagTextColor)
         .background(
             tagBgColor,
             in: Capsule()

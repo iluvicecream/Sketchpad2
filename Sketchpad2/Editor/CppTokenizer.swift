@@ -1,6 +1,5 @@
 import Foundation
 
-/// Lexical classification for a slice of Arduino/C++ source.
 enum TokenKind: Sendable, Hashable {
     case keyword
     case arduinoFunction
@@ -16,18 +15,11 @@ enum TokenKind: Sendable, Hashable {
     case punctuation
 }
 
-/// A classified slice of source, expressed in UTF-16 offsets so it can be applied
-/// straight to `NSTextStorage`.
 struct Token: Sendable, Hashable {
     let kind: TokenKind
     let range: NSRange
 }
 
-/// Single-pass scanner producing syntax tokens for Arduino sketches.
-///
-/// Block comments carry across lines. String and character literals stay colored
-/// until their closing quote, but recover at the end of a line so an unterminated
-/// literal typed mid-edit does not swallow the rest of the file.
 enum CppTokenizer {
 
     static func tokenize(_ source: String) -> [Token] {

@@ -1,14 +1,10 @@
 import AppKit
 
-/// `NSTextView` configured and extended for code: syntax highlighting, current-line
-/// highlight, smart indentation, bracket pairing, and comment toggling.
 @MainActor
 final class EditorTextView: NSTextView {
 
     static let indentUnit = "  "
 
-    /// Undo manager handed down from the SwiftUI document environment so edits take
-    /// part in the document's undo stack and edited state.
     var injectedUndoManager: UndoManager?
 
     var editorFont: NSFont = .monospacedSystemFont(ofSize: 13, weight: .regular)

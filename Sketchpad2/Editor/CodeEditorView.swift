@@ -1,11 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Native code editor for Arduino sketches.
-///
-/// The SwiftUI document's `String` stays the single source of truth: the coordinator
-/// pushes edits out of the text view, and `updateNSView` only writes back when the
-/// document changed underneath the editor (file reload, revert, or undo elsewhere).
+
 struct CodeEditorView: NSViewRepresentable {
     @Binding var text: String
     @Environment(\.undoManager) private var undoManager
@@ -73,7 +69,6 @@ struct CodeEditorView: NSViewRepresentable {
         textView.isIncrementalSearchingEnabled = true
         textView.textContainerInset = NSSize(width: 8, height: 6)
 
-        // Code must not be rewritten by the text system.
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -83,7 +78,6 @@ struct CodeEditorView: NSViewRepresentable {
         textView.isGrammarCheckingEnabled = false
         textView.smartInsertDeleteEnabled = false
 
-        // Long lines scroll instead of wrapping.
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = true
         textView.minSize = NSSize(width: 0, height: 0)

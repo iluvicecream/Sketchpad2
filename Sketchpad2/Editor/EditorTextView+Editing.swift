@@ -1,8 +1,5 @@
 import AppKit
 
-/// Code-aware editing behavior: smart newlines, indentation, bracket pairing, and
-/// comment toggling. All edits go through `shouldChangeText`/`didChangeText` so they
-/// participate in undo and update the document binding like normal typing.
 extension EditorTextView {
 
     enum LineTransformMode {
@@ -104,7 +101,6 @@ extension EditorTextView {
 
     // MARK: - Bracket and quote pairing
 
-    /// Toggles `//` on the selected lines, or on the insertion point's line.
     func toggleComment() {
         applyLineTransform(mode: .toggleComment)
     }
@@ -155,8 +151,6 @@ extension EditorTextView {
         }
     }
 
-    /// Dedents a closing brace and collapses the auto-indented blank line that
-    /// `insertSmartNewline` leaves between a matching pair.
     private func handleClosingBrace() -> Bool {
         guard let storage = textStorage else { return false }
         let text = string as NSString

@@ -1,9 +1,6 @@
 import Foundation
 
-/// Symbol tables used to tell Arduino API surface apart from ordinary identifiers.
 enum ArduinoSymbols {
-
-    /// Arduino core functions.
     static let functions: Set<String> = [
         "setup", "loop", "yield",
         "pinMode", "digitalWrite", "digitalRead",
@@ -21,7 +18,6 @@ enum ArduinoSymbols {
         "dacWrite", "touchRead", "espDeepSleep", "espRestart"
     ]
 
-    /// Arduino constants and the global objects the core predefines.
     static let constants: Set<String> = [
         "HIGH", "LOW", "INPUT", "OUTPUT", "INPUT_PULLUP", "INPUT_PULLDOWN",
         "LED_BUILTIN", "CHANGE", "RISING", "FALLING", "ON", "OFF",
@@ -33,7 +29,6 @@ enum ArduinoSymbols {
         "LED_RED", "LED_GREEN", "LED_BLUE"
     ]
 
-    /// Arduino-specific types.
     static let types: Set<String> = [
         "byte", "boolean", "word", "String", "size_t", "ssize_t",
         "uint8_t", "uint16_t", "uint32_t", "uint64_t",
@@ -41,7 +36,6 @@ enum ArduinoSymbols {
         "u_int8_t", "u_int16_t", "u_int32_t"
     ]
 
-    /// C++ language keywords.
     static let keywords: Set<String> = [
         "alignas", "alignof", "and", "and_eq", "asm", "auto",
         "bitand", "bitor", "bool", "break",
@@ -61,7 +55,6 @@ enum ArduinoSymbols {
         "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq"
     ]
 
-    /// Classifies an identifier into a token kind, falling back to `.identifier`.
     static func kind(forIdentifier identifier: String) -> TokenKind {
         if keywords.contains(identifier) { return .keyword }
         if functions.contains(identifier) { return .arduinoFunction }
